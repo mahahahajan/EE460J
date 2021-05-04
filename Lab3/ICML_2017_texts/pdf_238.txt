@@ -1,0 +1,1717 @@
+Global optimization of Lipschitz functions
+
+C´edric Malherbe 1 Nicolas Vayatis 1
+
+Abstract
+
+The goal of the paper is to design sequential
+strategies which lead to efﬁcient optimization of
+an unknown function under the only assumption
+that it has a ﬁnite Lipschitz constant. We ﬁrst
+identify sufﬁcient conditions for the consistency
+of generic sequential algorithms and formulate
+the expected minimax rate for their performance.
+We introduce and analyze a ﬁrst algorithm called
+LIPO which assumes the Lipschitz constant to
+be known. Consistency, minimax rates for LIPO
+are proved, as well as fast rates under an addi-
+tional H¨older like condition. An adaptive version
+of LIPO is also introduced for the more realistic
+setup where the Lipschitz constant is unknown
+and has to be estimated along with the optimiza-
+tion. Similar theoretical guarantees are shown
+to hold for the adaptive algorithm and a numer-
+ical assessment is provided at the end of the pa-
+per to illustrate the potential of this strategy with
+respect to state-of-the-art methods over typical
+benchmark problems for global optimization.
+
+1. Introduction
+In many applications such as complex system design or
+hyperparameter calibration for learning systems, the goal
+is to optimize the output value of an unknown function
+with as few evaluations as possible. Indeed, in such con-
+texts, evaluating the performance of a single set of pa-
+rameters often requires numerical simulations or cross-
+validations with signiﬁcant computational cost and the op-
+erational constraints impose a sequential exploration of the
+solution space with small samples. Moreover, it can ge-
+nerally not be assumed that the function has good prop-
+erties such as linearity or convexity. This generic prob-
+lem of sequentially optimizing the output of an unknown
+and potentially nonconvex function is often referred to as
+
+1CMLA, ENS Cachan, CNRS, Universit´e Paris-Saclay, 94235,
+<name@cmla.ens-
+
+Cachan, France. Correspondence to:
+cachan.fr>.
+
+Proceedings of the 34 th International Conference on Machine
+Learning, Sydney, Australia, PMLR 70, 2017. Copyright 2017
+by the author(s).
+
+global optimization (Pint´er, 1991), black-box optimization
+(Jones et al., 1998) or derivative-free optimization (Rios &
+Sahinidis, 2013). There is a large number of algorithms
+based on various heuristics which have been introduced
+in order to solve this problem such as genetic algorithms,
+model-based methods or Bayesian optimization. We focus
+here on the smoothness-based approach to global optimiza-
+tion. This approach is based on the simple observation that,
+in many applications, the system presents some regularity
+with respects to the input. In particular, the use of the Lips-
+chitz constant, ﬁrst proposed in the seminal works of (Shu-
+bert, 1972; Piyavskii, 1972), initiated an active line of re-
+search and played a major role in the development of many
+efﬁcient global optimization algorithms such as DIRECT
+(Jones et al., 1993), MCS (Huyer & Neumaier, 1999) or
+SOO (Preux et al., 2014). Convergence properties of global
+optimization methods have been developed in the works of
+(Valko et al., 2013; Munos, 2014) under local smoothness
+assumptions, but, up to our knowledge, such properties
+have not been considered in the case where only the global
+smoothness of the function can be speciﬁed. An interest-
+ing question is how much global assumptions on regularity
+which cover in some sense local assumptions may improve
+the convergence of the latter. In this work, we address the
+following questions: (i) ﬁnd the limitations and the best
+performance that can be achieved by any algorithm over the
+class of Lipschitz functions and (ii) design efﬁcient and op-
+timal algorithms for this class of problems. Our contribu-
+tion with regards to the above mentioned works is twofold.
+First, we introduce two novel algorithms for global opti-
+mization which exploit the global smoothness of the func-
+tion and display good performance in typical benchmarks
+for optimization. Second, we show that these algorithms
+can achieve faster rates of convergence on globally smooth
+problems than the previously known methods which only
+exploit the local smoothness of the function. The rest of the
+paper is organized as follows. In Section 2, we introduce
+the framework and give generic results about the conver-
+gence of sequential algorithms. In Section 3, we introduce
+and analyze the LIPO algorithm which requires the knowl-
+edge of the Lipschitz constant. In Section 4, the algorithm
+is extended to the case where the Lipschitz constant is un-
+known and the adaptive algorithm is compared to existing
+methods in Section 5. All proofs can be found in the Sup-
+plementary Material provided as a separate document.
+
+Global optimization of Lipschitz functions
+
+2. Setup and preliminary results
+2.1. Setup and notations
+Setup. Let X ⊂ Rd be a compact and convex set with non-
+empty interior and let f : X → R be an unknown function
+which is only supposed to admit a maximum over its in-
+put domain X . The goal in global optimization consists in
+ﬁnding some point
+
+x(cid:63) ∈ arg max
+
+x∈X
+
+f (x)
+
+with a minimal amount of function evaluations. The stan-
+dard setup involves a sequential procedure which starts
+by evaluating the function f (X1) at an initial point X1
+and then selects at each step t ≥ 1 an evaluation
+point Xt+1 ∈ X depending on the previous evaluations
+(X1, f (X1)), . . . , (Xt, f (Xt)) and receives the evaluation
+of the unknown function f (Xt+1) at this point. After n
+iterations, we consider that the algorithm returns an evalu-
+ation point Xˆın with ˆın ∈ arg mini=1...n f (Xi) which has
+recorded the highest evaluation. The performance of the
+algorithm over the function f is then measured after n iter-
+ations through the difference between the value of the true
+maximum and the highest evaluation observed so far:
+
+max
+x∈X f (x) − max
+
+i=1...n
+
+f (Xi).
+
+The analysis provided in the paper considers that the num-
+ber n of evaluation points is not ﬁxed and it is assumed that
+function evaluations are noiseless. Moreover, the assump-
+tion made on the unknown function f throughout the paper
+is that it has a ﬁnite Lipschitz constant k, i.e.
+
+∃k ≥ 0 s.t. |f (x)− f (x(cid:48))| ≤ k ·(cid:107)x − x(cid:48)
+
+(cid:107)2 ∀(x, x(cid:48)) ∈ X 2.
+
+i=1 x2
+∈ Rd : (cid:107)x − x(cid:48)
+
+note by (cid:107)x(cid:107)2 = ((cid:80)d
+
+Before starting the analysis, we point out that similar set-
+tings have also been studied in (Munos, 2014; Malherbe
+et al., 2016) and that (Valko et al., 2013; Grill et al., 2015)
+considered the noisy scenario.
+Notations. For all x = (x1, . . . , xd) ∈ Rd, we de-
+i )1/2 the standard (cid:96)2-norm and
+by B(x, r) = {x(cid:48)
+(cid:107)2 ≤ r} the ball
+centered in x of radius r ≥ 0. For any bounded set
+X ⊂ Rd, we deﬁne its inner-radius as rad(X ) = max{r >
+0 : ∃x ∈ X such that B(x, r) ⊆ X}, its diameter as
+diam(X ) = max(x,x(cid:48))∈X 2 (cid:107)x − x(cid:48)
+(cid:107)2 and we denote by
+µ(X ) its volume where µ(·) stands for the Lebesgue mea-
+sure. Lip(k) = {f : X → R s.t. |f (x) − f (x(cid:48))| ≤
+k · (cid:107)x − x(cid:48)
+(cid:107)2 , ∀(x, x(cid:48)) ∈ X 2} denotes the class of k-
+k≥0 Lip(k) denotes
+the set of Lipschitz continuous functions. U(X ) stands for
+the uniform distribution over a bounded measurable do-
+main X , B(p) for the Bernoulli distribution of parameter
+p, I{·} for the standard indicator function taking values in
+{0, 1} and the notation X ∼ P means that the random vari-
+able X has the distribution P.
+
+Lipschitz functions deﬁned on X and(cid:83)
+
+2.2. Preliminary results
+
+In order to design efﬁcient procedures, we ﬁrst investigate
+the best performance that can be achieved by any algorithm
+over the class of Lipschitz functions.
+Sequential algorithms and optimization consistency. We
+describe the sequential procedures that are considered here
+and the corresponding concept of consistency in the sense
+of global optimization.
+
+Deﬁnition 1 (SEQUENTIAL ALGORITHM) The class of
+optimization algorithms we consider, denoted in the sequel
+by A, contains all the algorithms A = {At}t≥1 completely
+described by:
+1. A distribution A1 taking values in X which allows to
+
+generate the ﬁrst evaluation point, i.e. X1 ∼ A1;
+
+2. An inﬁnite collection of distributions {At}t≥2 tak-
+ing values in X and based on the previous evalu-
+ations which deﬁne the iteration loop, i.e. Xt+1 ∼
+At+1((X1, f (X1)), . . . , (Xt, f (Xt))).
+
+Note that this class of algorithms also includes the deter-
+ministic methods in which case the distributions {At}t≥1
+are degenerate. The next deﬁnition introduces the notion of
+asymptotic convergence.
+
+Deﬁnition 2 (OPTIMIZATION CONSISTENCY) A global
+optimization algorithm A is said to be consistent over a
+set F of real-valued functions admitting a maximum over
+X if and only if
+
+∀f ∈ F, max
+
+i=1...n
+
+f (Xi)
+
+−→ max
+
+x∈X f (x)
+
+p
+
+where X1, . . . , Xn denotes a sequence of n evaluations
+points generated by the algorithm A over the function f.
+
+Asymptotic performance. We now investigate the mini-
+mal conditions for a sequential algorithm to achieve asymp-
+totic convergence. Of course, it is expected that a global
+optimization algorithm should be consistent at least for the
+class of Lipschitz functions and the following result reveals
+a necessary and sufﬁcient condition (NSC) in this case.
+
+Proposition 3 (CONSISTENCY NSC) A global optimiza-
+tion algorithm A is consistent over the set of Lipschitz func-
+tions if and only if
+
+∀f ∈
+
+k≥0 Lip(k), sup
+x∈X
+
+i=1...n(cid:107)Xi − x(cid:107)2
+min
+
+p
+
+−→ 0.
+
+(cid:83)
+
+A crucial consequence of the latter proposition is that the
+design of any consistent method ends up to covering the
+whole input space regardless of the function values. The
+example below introduces the most popular space-ﬁlling
+method which will play a central role in our analysis.
+
+Global optimization of Lipschitz functions
+
+Example 4 (PURE RANDOM SEARCH) The Pure Random
+Search (PRS) consists in sequentially evaluating the func-
+tion over a sequence of points X1, X2, X3, . . . uniformly
+and independently distributed over the input space X . For
+this method, a simple union bound indicates that for all
+n ∈ N(cid:63) and δ ∈ (0, 1), we have with probability at least
+(cid:19) 1
+(cid:18) ln(n/δ) + d ln(d)
+1 − δ and independently of the function values,
+
+d
+
+sup
+x∈X
+
+min
+i=1...n(cid:107)Xi−x(cid:107)2 ≤ diam(X )·
+
+n
+
+.
+
+In addition to this result, we point out that the covering rate
+of any method can easily be shown to be at best of order
+Ω(n−1/d) and thus subject to to the curse of dimension-
+ality by means of covering arguments. Keeping in mind
+the equivalence of Proposition 3, we may now turn to the
+nonasymptotic analysis.
+Finite-time performance. We investigate here the best
+performance that can be achieved by any algorithm with
+a ﬁnite number of function evaluations. We start by cast-
+ing a negative result stating that any algorithm can suffer, at
+any time, an arbitrarily large loss over the class of Lipschitz
+functions.
+
+Proposition 5 Consider any global optimization algo-
+(cid:83)
+rithm A. Then, for any constant C > 0 arbitrarily large,
+any n ∈ N(cid:63) and δ ∈ (0, 1),
+there exists a function
+˜f ∈
+k≥0 Lip(k) only depending on (A, C, n, δ) for which
+we have with probability at least 1 − δ,
+˜f (x) − max
+
+C ≤ max
+x∈X
+
+˜f (Xi).
+
+i=1...n
+
+This result might however not be very surprising since the
+class of Lipschitz functions includes functions with ﬁnite,
+but arbitrarily large variations. When considering the sub-
+class of functions with ﬁxed Lipschitz constant, it becomes
+possible to derive ﬁnite-time bounds on the minimax rate
+of convergence.
+
+Proposition 6 (MINIMAX RATE) adapted from (Bull,
+2011). For any Lipschitz constant k ≥ 0 and any n ∈ N(cid:63),
+the following inequalities hold true:
+c1 · k · n− 1
+
+(cid:20)
+
+(cid:21)
+
+d ≤
+inf
+A∈A sup
+f∈Lip(k)
+
+E
+
+max
+x∈X f (x) − max
+
+i=1...n
+
+f (Xi)
+
+≤ c2 · k · n− 1
+where c1 = rad(X ) /(8√d), c2 = diam(X ) × d! and the
+
+expectation is taken over a sequence of n evaluation points
+X1, . . . , Xn generated by the algorithm A over f.
+
+d
+
+We point out that this minimax rate of convergence of or-
+der Θ(n−1/d) can still be achieved by any method with
+an optimal covering rate of order O(n−1/d). Observe in-
+deed that since E [maxx∈X f (x) − maxi=1...n f (Xi)] ≤ k
+× E [supx∈X mini=1...n (cid:107)x − Xi(cid:107)2] for all f ∈ Lip(k),
+then an optimal covering rate necessarily implies minimax
+efﬁciency. However, as it can be seen by examining the
+proof of Proposition 6 provided in the Supplementary Ma-
+terial, the functions constructed to prove the limiting bound
+of Ω(n−1/d) are spikes which are almost constant every-
+where and do not present a large interest from a practical
+perspective. In particular, we will see in the sequel that one
+can design:
+I) An algorithm with ﬁxed constant k≥ 0 which achieves
+minimax efﬁciency and also presents exponentially
+decreasing rates over a large subset of functions, as
+opposed to space-ﬁlling methods (LIPO, Section 3).
+
+II) A consistent algorithm which does not require the
+knowledge of the Lipschitz constant and presents
+comparable performance as when the constant k is as-
+sumed to be known (AdaLIPO, Section 4).
+
+3. Optimization with ﬁxed Lipschitz constant
+In this section, we consider the problem of optimizing an
+unknown function f given the knowledge that f ∈ Lip(k)
+for a given k ≥ 0.
+3.1. The LIPO Algorithm
+The inputs of the LIPO algorithm (Algorithm 1) are a num-
+ber n of function evaluations, a Lipschitz constant k ≥ 0,
+the input space X and the unknown function f. At each
+iteration t ≥ 1, a random variable Xt+1 is sampled uni-
+formly over the input space X and the algorithm decides
+whether or not to evaluate the function at this point. In-
+deed, it evaluates the function over Xt+1 if and only if
+the value of the upper bound on possible values U B :
+x (cid:55)→ mini=1...t f (Xi) +k ·(cid:107)x − Xi(cid:107)2 evaluated at this
+point and computed from the previous evaluations is at least
+equal to the value of the best evaluation observed so far
+maxi=1...t f (Xi). As an example, the computation of the
+decision rule of LIPO is illustrated in Figure 1.
+
+Algorithm 1 LIPO(n, k,X , f )
+1. Initialization: Let X1 ∼ U(X )
+..... Evaluate f (X1), t ← 1
+2. Iterations: Repeat while t < n
+..... Let Xt+1 ∼ U(X )
+..... If min
+i=1...t
+........... Evaluate f (Xt+1), t ← t + 1
+3. Output: Return Xˆın where ˆın ∈ arg maxi=1...n f (Xi)
+
+(f (Xi) + k · (cid:107)Xt+1 − Xi(cid:107)2) ≥ max
+
+f (Xi)
+
+i=1...t
+
+Global optimization of Lipschitz functions
+
+More formally, the mechanism behind this rule can be ex-
+plained using the active subset of consistent functions pre-
+viously considered in active learning (see, e.g., (Dasgupta,
+2011) and (Hanneke, 2011)).
+
+Deﬁnition 7 (CONSISTENT FUNCTIONS) The active sub-
+set of k-Lipschitz functions consistent with the unknown
+function f over a sample (X1, f (X1)), . . . , (Xt, f (Xt)) of
+t ≥ 1 evaluations is deﬁned as follows:
+Fk,t := {g ∈ Lip(k) : ∀i ∈ {1 . . . t}, g(Xi) = f (Xi)}.
+Indeed, one can recover from this deﬁnition the subset of
+points which can actually maximize the function f.
+Deﬁnition 8 (POTENTIAL MAXIMIZERS) Using the same
+notations as in Deﬁnition 7, we deﬁne the subset of poten-
+(cid:27)
+tial maximizers estimated over any sample t ≥ 1 evalua-
+tions with a constant k ≥ 0 as follows:
+Xk,t :=
+
+x ∈ X : ∃g ∈ Fk,t such that x ∈ arg max
+
+(cid:26)
+
+g(x)
+
+x∈X
+
+.
+
+We may now provide an equivalence which makes the link
+with the decision rule of the LIPO algorithm.
+Lemma 9 If Xk,t denotes the set of potential maximizers
+deﬁned above, then we have the following equivalence:
+
+i=1...t
+
+f (Xi) + k · (cid:107)x − Xi(cid:107)2 ≥ max
+
+x ∈ Xk,t ⇔ min
+Hence, we deduce from this lemma that the algorithm only
+evaluates the function over points that still have a chance to
+be maximizers of the unknown function.
+
+f (Xi).
+
+i=1...t
+
+Remark 10 (EXTENSION TO OTHER SMOOTHNESS AS-
+SUMPTIONS) It is important to note the proposed opti-
+mization scheme could easily be extended to a large num-
+ber of sets of globally and locally smooth functions by
+slightly adapting the decision rule. For instance, when
+: X → R | x(cid:63) is unique and ∀x ∈
+F(cid:96) = {f
+X , f (x(cid:63)) − f (x) ≤ (cid:96)(x(cid:63), x)} denotes the set of functions
+locally smooth around their maxima with regards to any
+semi-metric (cid:96) : X × X → R previously considered in
+(Munos, 2014), a straightforward derivation of Lemma 9
+directly gives that the decision rule applied in Xt+1 would
+
+simply consists in testing whether maxi=1...t f (Xi) ≤
+mini=1...t f (Xi) + (cid:96)(Xt+1, Xi). However, since the pur-
+pose of this work is to design fast algorithms for Lipschitz
+functions, we will only derive convergence results for the
+version of the algorithm stated above.
+3.2. Convergence analysis
+
+We start with the consistency property of the algorithm.
+
+Proposition 11 (CONSISTENCY) For any Lipschitz con-
+stant k ≥ 0, the LIPO algorithm tuned with a parameter
+k is consistent over the set k-Lipschitz functions, i.e.,
+
+∀f ∈ Lip(k), max
+
+i=1...n
+
+f (Xi)
+
+p
+
+−→ max
+
+x∈X f (x).
+
+The next result shows that the value of the highest evalua-
+tion observed by the algorithm is always superior or equal
+in the usual stochastic ordering sense to the one of a PRS.
+
+Proposition 12 (FASTER THAN PURE RANDOM SEARCH)
+Consider the LIPO algorithm tuned with any constant k ≥
+0. Then, for any f ∈ Lip(k) and n ∈ N(cid:63), we have that
+P(cid:16)
+∀y ∈ R,
+
+(cid:17)
+
+(cid:17)
+
+f (X(cid:48)
+
+≥ P(cid:16)
+
+max
+i=1...n
+
+f (Xi) ≥ y
+
+max
+i=1...n
+
+i) ≥ y
+
+1, . . . , X(cid:48)
+
+where X1, . . . , Xn is a sequence of n evaluation points
+generated by LIPO and X(cid:48)
+n is a sequence of n in-
+dependent random variables uniformly distributed over X .
+Based on this result, one can easily derive a ﬁrst ﬁnite-time
+bound on the difference between the value of the true max-
+imum and its approximation.
+Corollary 13 (UPPER BOUND) For any f ∈ Lip(k), n ∈
+(cid:19) 1
+(cid:18) ln(1/δ)
+N(cid:63) and δ ∈ (0, 1), we have with probability at least 1 − δ,
+max
+x∈X f (x) − max
+
+f (Xi) ≤ k · diam(X ) ·
+
+i=1...n
+
+n
+
+.
+
+d
+
+This bound which assesses the miminax optimality of LIPO
+stated in Proposition 6 does however not show any im-
+provement over PRS and it cannot be signiﬁcantly im-
+proved without any additional assumption as shown below.
+Proposition 14 For any n ∈ N(cid:63) and δ ∈ (0, 1), there ex-
+ists a function ˜f ∈ Lip(k) only depending on n and δ for
+which we have with probability at least 1 − δ:
+˜f (x) − max
+
+k · rad(X ) ·
+
+(cid:18) δ
+
+≤ max
+x∈X
+
+(cid:19) 1
+
+˜f (Xi).
+
+i=1...n
+
+n
+
+d
+
+Figure 1. Left:A Lipschitz function, a sample of 4 evaluations and
+the upper bound U B : x (cid:55)→ mini=1...t f (Xi) +k ·(cid:107)x − Xi(cid:107)2
+in grey. Right: the set of points Xk,t := {x ∈ X : U B(x) ≥
+maxi=1...t f (Xi)} which satisfy the decision rule.
+
+As announced in Section 2.2, one can nonetheless get
+tighter polynomial bounds and even an exponential decay
+by using the following condition which describes the be-
+havior of the function around its maximum.
+
+XXk,tGlobal optimization of Lipschitz functions
+
+Figure 2. Three one-dimensional functions satisfying Condition 1
+with κ = 1/2 (Left), κ = 1 (Middle) and κ = 2 (Right).
+
+Condition 1 (DECREASING RATE AROUND THE MAXI-
+MUM) A function f : X → R is (κ, cκ)-decreasing around
+its maximum for some κ ≥ 0, cκ ≥ 0 if:
+1. The global optimizer x(cid:63) ∈ X is unique;
+2. For all x ∈ X , we have that:
+
+f (x(cid:63)) − f (x) ≥ cκ · (cid:107)x − x(cid:63)(cid:107)κ
+2 .
+
+This condition, already considered in the works of (Zhigl-
+javsky & Pint´er, 1991) and (Munos, 2014), captures how
+fast the function decreases around its maximum. It can be
+seen as a local one-sided H¨older condition which can only
+be met for κ ≥ 1 when f is assumed to be Lipschitz. As
+an example, three functions satisfying this condition with
+different values of κ are displayed on Figure 3.2.
+Theorem 15 (FAST RATES) Let f ∈ Lip(k) be any Lips-
+chitz function satisfying Condition 1 for some κ ≥ 1, cκ >
+0. Then, for any n ∈ N(cid:63) and δ ∈ (0, 1), we have with
+probability at least 1 − δ,
+max
+x∈X f (x) − max
+
+f (Xi) ≤ k × diam(X )×
+
+i=1...n
+
+(cid:26)
+(cid:18)
+
+
+
+(cid:27)
+(cid:19)− κ
+
+,
+
+,
+
+d(κ−1)
+
+κ = 1
+
+κ > 1
+
+exp
+
+− Ck,κ ·
+
+n ln(2)
+
+ln(n/δ) + 2(2√d)d
+
+2κ
+2
+
+1 + Ck,κ ·
+
+n(2d(κ 1) − 1)
+ln(n/δ) + 2(2√d)d
+
+where Ck,κ = (cκ maxx∈X (cid:107)x − x(cid:63)(cid:107)κ−1 /8k)d.
+
+The last result we provide states an exponentially decreas-
+ing lower bound.
+Theorem 16 (LOWER BOUND) For any f ∈ Lip(k) satis-
+fying Condition 1 for some κ ≥ 1, cκ > 0 and any n ∈ N(cid:63)
+and δ ∈ (0, 1), we have with probability at least 1 − δ,
+cκ rad(X )κ · e
+
+(cid:17)
+n+√2n ln(1/δ)+ln(1/δ)
+
+d ·(cid:16)
+
+− κ
+
+≤ max
+
+x∈X f (x) − max
+
+i=1...n
+
+f (Xi).
+
+A discussion on these results can be found in the next sec-
+tion where LIPO is compared with similar algorithms.
+
+3.3. Comparison with previous works
+
+The Piyavskii algorithm (Piyavskii, 1972) is a Lips-
+chitz method with ﬁxed k ≥ 0 consisting in sequen-
+tially evaluating the function over a point Xt+1 ∈
+arg maxx∈X mini=1...t f (Xi) + k · (cid:107)x − Xi(cid:107) maximizing
+the upper bound displayed on Figure 1.
+(Munos, 2014)
+also proposed a similar algorithm (DOO) which uses a hi-
+erarchical partitioning of the space in order to sequentially
+expand and evaluate the function over the center of a par-
+tition which has the highest upper bound computed from
+a semi-metric (cid:96) set as input. Up to our knowledge, only
+the consistency of the Piyavskii algorithm was proven in
+(Mladineo, 1986) and (Munos, 2014) derived ﬁnite-time
+bounds for DOO with the use of weaker local assump-
+tions. To compare our results, we thus considered DOO
+tuned with (cid:96)(x, x(cid:48)) = k (cid:107)x − x(cid:48)
+(cid:107)2 over X = [0, 1]d parti-
+tioned into a 2d-ary tree of hypercubes and with f belong-
+ing to the sets of globally smooth functions: (a) Lip(k), (b)
+Fκ = {f ∈ Lip(k) satisfying Condition 1 with cκ, κ ≥ 0}
+(cid:48)
+and (c) F
+κ = {f ∈ Fκ : ∃c2 > 0, f (x(cid:63)) − f (x) ≤
+c2 (cid:107)x − x(cid:63)(cid:107)κ
+2}. The results of the comparison can be found
+in Table 1.
+In addition to the novel lower bounds and
+the rate over Lip(k), we were able to obtain similar up-
+per bounds as DOO over Fκ, uniformly better rates for the
+functions in F
+2 with κ > 1
+and a similar exponenital rate, up to a constant factor, when
+κ = 1. Hence, when f is only known to be k-Lipschitz,
+one thus should expect the algorithm exploiting the global
+smoothness (LIPO) to perform asymptotically better or at
+least similarly to the one using the local smoothness (DOO)
+or no information (PRS). However, keeping in mind that
+the constants are not necessarily optimal, it is also interest-
+ing to note that the term (k√d/cκ)d appearing in both the
+exponential rates of LIPO and DOO tends to suggest that
+if f is also known to be locally smooth for some k(cid:96) (cid:28) k,
+then one should expect an algorithm exploiting the local
+smoothness k(cid:96) to be asymptotically faster than the one us-
+ing the global smoothness k in the case where κ = 1.
+
+(cid:48)
+κ locally equivalent to (cid:107)x(cid:63) − x(cid:107)κ
+
+d )
+
+d )
+
+LIPO
+
+DOO
+
+(cid:88)
+-
+
+κ, κ > 1
+
+− κ
+
+O(n
+
+Piyavskii
+
+PRS
+
+d(κ 1) )
+-
+
+O∗P (n
+Ω∗P (e
+
+(cid:88)
+− 1
+OP(n
+
+(cid:88)
+− 1
+OP(n
+
+− κ
+d(κ 1) )
+− κ
+d
+
+Algorithm
+f ∈ Lip(k)
+Consistency
+Upper Bound
+f ∈ Fκ, κ > 1
+Upper bound
+Lower bound
+f ∈ F(cid:48)
+Upper bound
+Lower bound
+f ∈ F(cid:48)
+Upper bound O(e
+Lower bound
+Table 1. Comparison of the results reported over the difference
+maxx∈X f (x) − maxi=1...n f (Xi) in Lipschitz optimization.
+Dash symbols are used when no results could be found.
+
+d/cκ )d ) O∗P (e
+-
+
+− κ×κ
+d(κ 1) )
+− κ
+d
+
+d/cκ)d ) -
+-
+d )
+
+O∗P (n
+Ω∗P (e
+
+d(κ 1) )
+-
+
+− κ
+− κ
+
+d )
+d )
+
+− 1
+− κ
+
+d )
+d )
+
+− 1
+− 1
+
+d )
+
+d )
+
+OP(n
+ΩP(n
+
+OP(n
+ΩP(n
+
+2(16k
+
+Ω∗P (e
+
+− n
+
+√
+n ln(2)
+
+(2k
+
+− κ
+
+O(n
+
+n)
+
+n)
+
+OP(n
+ΩP(n
+
+(cid:88)
+-
+
+-
+-
+
+-
+-
+
+κ, κ = 1
+
+n ln(2)
+
+√
+
+κ=0.5κ=1κ=2Global optimization of Lipschitz functions
+
+4. Optimization with unknown Lipschitz
+
+constant
+
+unknown function f in the class(cid:83)
+
+In this section, we consider the problem of optimizing any
+
+k≥0 Lip(k).
+
+4.1. The adaptive algorithm
+The AdaLIPO algorithm (Algorithm 2) is an extension of
+LIPO which involves an estimate of the Lipschitz constant
+and takes as input a parameter p ∈ (0, 1) and a nondecreas-
+ing sequence of Lipschitz constant ki∈Z deﬁning a mesh-
+grid of R+ (i.e. such that ∀x > 0, ∃i ∈ Z with ki ≤ x ≤
+ki+1). The algorithm is initialized with a Lipschitz constant
+ˆk1 set to 0 and alternates randomly between two distinct
+phases: exploration and exploitation. Indeed, at step t < n,
+a Bernoulli random variable Bt+1 of parameter p driving
+this trade-off is sampled. If Bt+1 = 1, then the algorithm
+explores the space by evaluating the function over a point
+uniformly sampled over X . Otherwise, if Bt+1 = 0, the
+algorithm exploits the previous evaluations by making an
+iteration of the LIPO algorithm with the smallest Lipschitz
+constant of the sequence ˆkt which is associated with a sub-
+set of Lipschitz functions that probably contains f (step ab-
+breviated in the algorithm by Xt+1 ∼ U(Xˆkt,t)). Once an
+evaluation has been made, the Lipschitz constant estimate
+ˆkt is updated.
+
+Remark 17 (EXAMPLES OF MESHGRIDS) Several se-
+quences of Lipschitz constants with various shapes such as
+ki = |i|sgn(i), ln(1 + |i|sgn(i)) or (1 + α)i for some α > 0
+could be considered to implement the algorithm. In par-
+ticular, we point out that with these sequences the com-
+putation of the estimate is straightforward. For instance,
+when ki = (1 + α)i, we have ˆkt = (1 + α)it where it =
+(cid:100)ln(maxi(cid:54)=j |f (Xj) − f (Xl)|/(cid:107)Xj − Xl(cid:107)2)/ ln(1 + α)(cid:101).
+4.2. Convergence analysis
+Lipschitz constant estimate. Before starting the analysis
+of AdaLIPO, we ﬁrst provide a control on the Lipschitz
+constant estimate based on a sample of random evaluations
+that will be useful to analyse its performance. In partic-
+ular, the next result illustrates the purpose of using a dis-
+cretization of Lipschitz constant instead of a raw estimate
+of the maximum slope by showing that, given this estimate,
+a small subset of functions containing the unknown func-
+tion can be recovered in a ﬁnite-time.
+
+Then,
+
+Proposition 18 Let f be any non-constant Lipschitz func-
+if ˆkt denotes the Lipschitz constant esti-
+tion.
+mate of Algorithm 2 computed with any increasing se-
+quence ki∈Z deﬁning a meshgrid of R+ over a sample
+(X1, f (X1)), . . . , (Xt, f (Xt)) of t ≥ 2 evaluations where
+X1, . . . , Xt are uniformly and independently distributed
+
+Algorithm 2 ADALIPO(n, p, ki∈Z,X , f )
+1. Initialization: Let X1 ∼ U(X )
+..... Evaluate f (X1), t ← 1, ˆk1 ← 0
+2. Iterations: Repeat while t < n
+..... Let Bt+1 ∼ B(p)
+..... If Bt+1 = 1 (Exploration)
+........... Let Xt+1 ∼ U(X )
+..... If Bt+1 = 0 (Exploitation)
+........... Let Xt+1 ∼ U(Xˆkt,t) where Xˆkt,t denotes the set
+........... of potential maximizers introduced in Deﬁnition 8
+(cid:27)
+........... computed with k set to ˆkt
+..... Evaluate f (Xt+1), t ← t + 1
+..... Let ˆkt := inf
+3. Output: Return Xˆın where ˆın ∈ arg maxi=1...n f (Xi)
+
+|f (Xi) − f (Xj)|
+(cid:107)Xi − Xj(cid:107)2 ≤ ki
+
+ki∈Z : max
+i(cid:54)=j
+
+(cid:26)
+
+P(cid:16)
+
+(cid:17)
+over X , we have that
+f ∈ Lip(ˆkt)
+(cid:18)
+where the coefﬁcient
+
+Γ(f, ki(cid:63) 1) := P
+
+≥ 1 − (1 − Γ(f, ki(cid:63) 1))(cid:98)t/2(cid:99)
+(cid:19)
+
+|f (X1) − f (X2)|
+
+(cid:107)X1 − X2(cid:107)2
+
+> ki(cid:63) 1
+
+> 0
+
+with i(cid:63) = min{i ∈ Z : f ∈ Lip(ki)}, is strictly positive.
+Remark 19 (MEASURE OF GLOBAL SMOOTHNESS) The
+coefﬁcient Γ(f, ki(cid:63) 1) which appears in the lower bound
+(cid:80)(cid:98)t/2(cid:99)
+of Proposition 18 can be seen as a measure of the global
+smoothness of the function f with regards to ki(cid:63) 1. Indeed,
+I{|f (Xi)−f (Xi+(cid:98)t/2(cid:99))| >
+observing that 1/(cid:98)t/2(cid:99)
+−→ Γ(f, ki(cid:63) 1), it is easy to see
+ki(cid:63) 1(cid:107)Xi − X(cid:98)t/2(cid:99)+i(cid:107)2}
+that Γ records the ratio of volume the product space X ×X
+where f is witnessed to be at least ki(cid:63) 1 Lipschitz.
+
+i=1
+p
+
+Remark 20 (DENSITY OF THE SEQUENCE) As a direct
+consequence of the previous remark, we point out that
+the density of the sequence ki∈Z, captured here by α =
+supi∈Z(ki+1 − ki)/ki has opposite impacts on the max-
+imal deviation of the estimate and its convergence rate.
+Indeed, since α is involved in both the following upper
+bounds on the deviation (limt→∞ ˆkt − k(cid:63))/k(cid:63) ≤ α where
+k(cid:63) = sup{k ≥ 0 : f /∈ Lip(k)} and on the coefﬁcient
+Γ(f, ki(cid:63) 1) ≤ Γ(f, k(cid:63)/(1 + α)), we deduce that using a
+sequence with a small α reduces the bias but also the con-
+vergence rate through a small coefﬁcient Γ(f, ki(cid:63)−1).
+
+Analysis of AdaLIPO. Given the consistency equivalence
+of Proposition 3, one can directly obtain the following
+asymptotic result.
+
+Proposition 21 (CONSISTENCY) The AdaLIPO algorithm
+tuned with any parameter p ∈ (0, 1) and any sequence of
+
+Global optimization of Lipschitz functions
+
+Lipschitz constant ki∈Z covering R+ is consistent over the
+set of Lipschitz functions, i.e.,
+
+∀f ∈
+
+k≥0 Lip(k), max
+
+i=1...n
+
+f (Xi)
+
+p
+
+−→ max
+
+x∈X f (x).
+
+(cid:83)
+
+The next result provides a ﬁrst ﬁnite-time bound on the dif-
+ference between the maximum and its approximation.
+
+Proposition 22 (UPPER BOUND) Consider AdaLIPO
+(cid:83)
+tuned with any p ∈ (0, 1) and any sequence ki∈Z deﬁn-
+ing a meshgrid of R+. Then, for any non-constant f ∈
+k≥0 Lip(k), any n ∈ N(cid:63) and δ ∈ (0, 1), we have with
+probability at least 1 − δ,
+(cid:18) ln(3/δ)
+(cid:19) 1
+max
+x∈X f (x) − max
+
+f (Xi) ≤ diam(X ) ×
+
+(cid:18) 5
+
+(cid:19) 1
+
+2 ln(δ/3)
+
+i=1...n
+
+d
+
+d
+
+ki(cid:63) ×
+
++
+
+p
+
+p ln(1 − Γ(f, ki(cid:63)-1))
+
+×
+
+n
+
+where Γ(f, ki(cid:63) 1) and i(cid:63) are deﬁned as in Proposition 18.
+
+This result might be misleading since it advocates that do-
+ing pure exploration gives the best rate (i.e., when p → 1).
+However, as Proposition 18 provides us with the guaran-
+tee that f ∈ Lip(ˆkt) within a ﬁnite number of iterations
+where ˆkt denotes the Lipschitz constant estimate, one can
+recover faster convergence rates similar to the one reported
+for LIPO where the constant k is assumed to be known.
+
+Theorem 23 (FAST RATES) Consider the same assump-
+tions as in Proposition 22 and assume in addition that the
+function f satisﬁes Condition 1 for some κ ≥ 1, cκ ≥ 0.
+Then, for any n ∈ N(cid:63) and δ ∈ (0, 1), we have with proba-
+bility at least 1 − δ,
+(cid:16)
+x∈X f (x) − max
+max
+ki(cid:63) × exp
+
+f (Xi) ≤ diam(X )×
+p ln(1−Γ(f,ki(cid:63) 1)) + 7 ln(4/δ)
+p(1−p)2
+
+(cid:17)
+
+2 ln(δ/4)
+
+i=1...n
+
+×
+
+(cid:26)
+(cid:18)
+
+
+
+exp
+
+−Cki(cid:63) ,κ ·
+
+n (1 − p) ln(2)
+
+2 ln(n/δ) + 4(2√d)d
+
+2κ
+
+1 + Cki(cid:63) ,κ ·
+
+n(1 − p)(2d(κ−1) − 1)
+2 ln(n/δ) + 4(2√d)d
+where Cki(cid:63) ,κ = (cκ, maxx∈X (cid:107)x − x(cid:63)(cid:107)κ−1
+
+2
+
+(cid:27)
+
+,
+
+κ = 1
+
+(cid:19)− κ
+
+d(κ−1)
+
+,
+
+κ > 1
+
+/8ki(cid:63) )d.
+
+This bound shows the precise impact of the parameters p
+and ki∈Z on the convergence of the algorithm. In particular,
+it illustrates the complexity of the exploration/exploitation
+trade-off through a constant term and a convergence rate
+which are inversely correlated to the exploration parameter
+and the density of the sequence of Lipschitz constants.
+
+4.3. Comparison with previous works
+
+The DIRECT algorithm (Jones et al., 1993) is a Lipschitz
+algorithm with unknown constant which uses a determin-
+istic splitting technique of the search space to evaluate the
+function on subdivisions of the space that have recorded
+the highest evaluation among all subdivisions of similar
+size. Moreover, (Munos, 2014) generalized DIRECT in
+a broader setting by extending DOO to any unknown and
+arbitrary local semi-metric. With regards to these works,
+we proposed an alternative stochastic strategy which di-
+rectly relies on the estimation of the Lipschitz constant and
+thus only presents guarantees for globally smooth func-
+tions. However, as far as we know, only the consistency
+property of DIRECT was shown in (Finkel & Kelley, 2004)
+and (Munos, 2014) derived convergence rates of the same
+order as for DOO, except that the best rate they derive is
+√
+of order O(e−c
+n) to be compared with the fast rate of
+AdaLIPO which is of order O∗P(e−cn). The conclusion of
+the comparison thus remains the same as in Section 3: ex-
+ploiting the global smoothness instead of just the local one
+allows to derive faster algorithms in the some cases where
+the unknown function is indeed globally smooth.
+5. Experiments
+We compare here the empirical performance of AdaLIPO
+with ﬁve state-of-the-art global optimization methods.
+Algorithms. BAYESOPT∗ (Martinez-Cantin, 2014) is a
+Bayesian optimization algorithm which uses a distribution
+over functions to build a surrogate model of the unknown
+function. The parameters of the distribution are estimated
+during the optimization process. CMA-ES‡(Hansen, 2006)
+is an evolutionary algorithm which samples the new evalu-
+ation points according to a multivariate normal distribution
+with mean vector and covariance matrix computed from the
+previous evaluations. CRS†(Kaelo & Ali, 2006) is a vari-
+ant of PRS including local mutations which starts with a
+random population and evolves these points by an heuris-
+tic rule. MLSL†(Kan & Timmer, 1987) is a multistart al-
+gorithm performing a series of local optimizations start-
+ing from points randomly chosen by a clustering heuris-
+tic that helps to avoid repeated searches of the same lo-
+cal optima. DIRECT†(Jones et al., 1993) and PRS were
+previously introduced. For a fair comparison, the tuning
+parameters were all set to default and AdaLIPO was con-
+stantly used with a parameter p set to 0.1 and a sequence
+ki = (1 + 0.01/d)i ﬁxed by an arbitrary rule of thumb. 1
+Data sets. Following the steps of (Malherbe & Vayatis,
+2016), we ﬁrst studied the task of estimating the regulariza-
+tion parameter λ and the bandwidth σ of a gaussian kernel
+ridge regression minimizing the empirical mean squared
+1In Python 2.7 from ∗BayesOpt (Martinez-Cantin, 2014),
+
+‡CMA 1.1.06 (Hansen, 2011) and †NLOpt (Johnson, 2014).
+
+Global optimization of Lipschitz functions
+
+Yacht
+
+t
+a
+r
+g
+e
+t
+
+9
+0
+
+%
+
+t
+a
+r
+g
+e
+t
+
+9
+5
+
+%
+
+t
+a
+r
+g
+e
+t
+
+9
+9
+
+%
+
+k=1(τk − ¯τK)2/K)1/2.
+
+ˆστ = ((cid:80)K
+
+25.2 (±21)
+13.8 (±20)
+29.6 (±25)
+32.6 (±15)
+11.0 (±00)
+14.4 (±13)
+73.3 (±72)
+33.3 (±26)
+15.9 (±21)
+40.5 (±30)
+38.3 (±31)
+27.0 (±00)
+16.3 (±13)
+247(±249)
+61.7 (±39)
+18.5 (±22)
+70.9 (±50)
+52.9 (±18)
+49.0 (±00)
+21.4 (±14)
+779(±334)
+
+Deb N.1
+916(±225)
+814(±276)
+930(±166)
+980(±166)
+1000(±00)
+198(±326)
+977(±117)
+986(±255)
+949(±153)
+952(±127)
+997(±127)
+1000(±00)
+215(±328)
+998(±025)
+1000(±00)
+1000(±00)
+962(±106)
+1000(±00)
+1000(±00)
+256(±334)
+1000(±00)
+
+Housing
+05.4 (±04)
+07.5 (±04)
+12.4 (±12)
+13.8 (±10)
+06.0 (±00)
+07.2 (±03)
+11.5 (±10)
+17.9 (±25)
+13.9 (±22)
+23.0 (±16)
+22.8 (±12)
+19.0 (±00)
+16.3 (±10)
+39.6 (±39)
+65.4 (±62)
+17.9 (±22)
+61.5 (±85)
+43.7 (±14)
+41.0 (±00)
+16.3 (±10)
+406(±312)
+
+Sphere
+036 (±12)
+019 (±03)
+171 (±68)
+233 (±54)
+031 (±00)
+175(±302)
+924(±210)
+042 (±11)
+045 (±16)
+223 (±57)
+340 (±66)
+098 (±00)
+226(±336)
+1000(±00)
+052 (±10)
+222 (±77)
+308 (±60)
+607 (±81)
+548 (±00)
+304(±357)
+1000(±00)
+
+Auto-MPG BreastCancer Concrete
+14.6 (±09)
+04.9 (±02)
+06.4 (±03)
+10.8 (±03)
+10.4 (±08)
+29.3 (±25)
+10.0 (±09)
+28.7 (±14)
+06.0 (±00)
+11.0 (±00)
+13.1 (±15)
+06.1 (±04)
+65.1 (±62)
+09.8 (±09)
+06.4 (±04)
+17.7 (±09)
+07.9 (±03)
+12.2 (±06)
+13.5 (±10)
+42.9 (±31)
+35.8 (±13)
+14.6 (±11)
+11.0 (±00)
+11.0 (±00)
+15.0 (±15)
+07.3 (±04)
+14.0 (±12)
+139 (±131)
+70.8 (±58)
+32.6 (±16)
+28.2 (±34)
+14.0 (±07)
+73.7 (±49)
+46.3 (±29)
+48.5 (±16)
+36.6 (±15)
+47.0 (±00)
+37.0 (±00)
+14.7 (±10)
+20.6 (±17)
+747(±330)
+176(±148)
+
+05.4 (±03)
+06.8 (±04)
+11.1 (±09)
+08.9 (±08)
+06.0 (±00)
+06.6 (±03)
+10.6 (±10)
+06.6 (±04)
+08.4 (±03)
+13.7 (±10)
+13.6 (±10)
+11.0 (±00)
+07.6 (±03)
+17.7 (±17)
+34.1 (±36)
+31.0 (±51)
+35.1 (±20)
+34.8 (±12)
+27.0 (±00)
+12.8 (±03)
+145(±124)
+
+HolderTable Rosenbrock LinearSlope
+077 (±058)
+029 (±13)
+032 (±58)
+410 (±417)
+100 (±76)
+080 (±115)
+094 (±43)
+307 (±422)
+092 (±00)
+080 (±000)
+305 (±379)
+016 (±33)
+210 (±202)
+831(±283)
+053 (±22)
+102 (±065)
+032 (±59)
+418 (±410)
+151 (±94)
+136 (±184)
+580 (±444)
+131 (±62)
+080 (±000)
+116 (±00)
+316 (±384)
+018 (±37)
+985(±104)
+349 (±290)
+122 (±31)
+212 (±129)
+032 (±59)
+422 (±407)
+215 (±198)
+211 (±92)
+599 (±427)
+168 (±76)
+080 (±000)
+226 (±00)
+022 (±42)
+322 (±382)
+772 (±310)
+1000(±00)
+
+07.5 (±07)
+07.6 (±05)
+10.0 (±10)
+09.0 (±09)
+10.0 (±00)
+06.9 (±05)
+09.0 (±09)
+11.5 (±11)
+12.0 (±08)
+16.1 (±13)
+15.8 (±14)
+10.0 (±00)
+08.8 (±05)
+18.0 (±17)
+44.6 (±39)
+27.6 (±22)
+43.5 (±37)
+42.7 (±23)
+24.0 (±00)
+19.4 (±49)
+100(±106)
+
+Problem
+AdaLIPO
+BayesOpt
+CMA-ES
+CRS
+DIRECT
+MLSL
+PRS
+AdaLIPO
+BayesOpt
+CMA-ES
+CRS
+DIRECT
+MLSL
+PRS
+AdaLIPO
+BayesOpt
+CMA-ES
+CRS
+DIRECT
+MLSL
+PRS
+Table 2. Results of the numerical experiments. The table displays the number of evaluations required by each method to reach the
+speciﬁed target (mean ± standard deviation). In bold, the best result obtained in terms of average of function evaluations.
+error of the predictions over a 10-fold cross validation
+with real data sets. The optimization was performed over
+(ln(λ), ln(σ)) ∈ [−3, 5] × [−2, 2] with ﬁve data sets from
+the UCI Machine Learning Repository (Lichman, 2013):
+Auto-MPG, Breast Cancer Wisconsin (Prognostic), Con-
+crete slump test, Housing and Yacht Hydrodynamics. We
+then compared the algorithms on a series of ﬁve synthetic
+problems commonly met in standard optimization bench-
+mark taken from (Jamil & Yang, 2013; Surjanovic & Bing-
+ham, 2013): HolderTable, Rosenbrock, Sphere, LinearS-
+lope and Deb N.1. This series includes multimodal and
+non-linear functions as well as ill-conditioned and well-
+shaped functions with a dimensionality ranging from 2 to 5.
+A complete description of the test functions of the bench-
+mark can be found in the Supplementary Material.
+Protocol and performance metrics. For each problem
+and each algorithm, we performed K = 100 distinct runs
+with a budget of n =1000 function evaluations. For each
+target parameter t = 90%, 95% and 99%, we have col-
+lected the stopping times corresponding to the number of
+evaluations required by each method to reach the speciﬁed
+target τk := min{i = 1, . . . , n : f (X (k)
+) ≥ ftarget(t)}
+where min{∅} = 1000 by convention, {f (X (k)
+i=1 de-
+)}n
+notes the evaluations made by a given method on the k-th
+run with k ≤ K and the target value is set to ftarget(t) :=
+maxx∈X f (x)−
+×
+(1 − t). The normalization of the target to the average
+value prevents the performance measures from being de-
+pendent of any constant term in the unknown function. In
+practice, the average was estimated from a Monte Carlo
+sampling of 106 evaluations and the maximum by taking
+the best value observed over all the sets of experiments.
+Based on these stopping times, we computed the average
+and standard deviation of the number of evaluations re-
+k=1 τk/K and
+
+Results. Results are collected in Table 2. Due to space
+constraints, we only make few comments. First, we point
+out that the proposed method displays very competitive re-
+sults over most of the problems of the benchmark (except
+on the non-smooth DebN.1 where most methods fail). In
+particular, AdaLIPO obtains several times the best perfor-
+mance for the target 90% and 95% (see, e.g., BreastCancer,
+HolderTable, Sphere) and experiments Linear Slope and
+Sphere also suggest that, in the case of smooth functions, it
+can be robust against the dimensionality of the input space.
+However, in some cases, the algorithm can be witnessed
+to reach the 95% target with very few evaluations while
+getting more slowly to the 99% target (see, e.g., Concrete,
+Housing). This problem is due to the instability of the Lip-
+schitz constant estimate around the maxima but could cer-
+tainly be solved with the addition of a noise parameter that
+would allow the algorithm be more robust against local per-
+turbations. Additionally, investigating better values for p
+and ki as well as alternative covering methods such as LHS
+(Stein, 1987) could also be promising approaches to im-
+prove its performance. However, an empirical analysis of
+the algorithm with these extensions is beyond the scope of
+the paper and will be carried out in a future work.
+
+6. Conclusion
+We introduced two novel strategies for global optimization:
+LIPO which requires the knowledge of the Lipschitz con-
+stant and its adaptive version AdaLIPO which estimates
+the constant during the optimization process. A theoreti-
+cal analysis is provided and empirical results based on syn-
+thetic and real problems have been obtained demonstrating
+the performance of the adaptive algorithm with regards to
+existing state-of-the-art global optimization methods.
+
+quired to reach the target, i.e. ¯τK = (cid:80)K
+
+i
+
+x∈X f (x) dx/µ(X )(cid:1)
+(cid:82)
+
+(cid:0)maxx∈X f (x) −
+
+i
+
+Global optimization of Lipschitz functions
+
+References
+Bull, Adam D. Convergence rates of efﬁcient global opti-
+mization algorithms. The Journal of Machine Learning
+Research, 12:2879–2904, 2011.
+
+Dasgupta, Sanjoy. Two faces of active learning. Theoretical
+
+Computer Science, 412(19):1767–1781, 2011.
+
+Finkel, Daniel E and Kelley, CT. Convergence analysis of
+the direct algorithm. Optimization On-line Digest, 2004.
+
+Grill, Jean-Bastien, Valko, Michal, and Munos, R´emi.
+Black-box optimization of noisy functions with un-
+In Neural Information Processing
+known smoothness.
+Systems, 2015.
+
+Hanneke, Steve. Rates of convergence in active learning.
+
+The Annals of Statistics, 39(1):333–361, 2011.
+
+Hansen, Nikolaus. The cma evolution strategy: a compar-
+ing review. In Towards a New Evolutionary Computa-
+tion, pp. 75–102. Springer, 2006.
+
+Hansen, Nikolaus. The cma evolution strategy: A tuto-
+rial. Retrieved May 15, 2016, from http://www.
+lri.fr/hansen/cmaesintro.html, 2011.
+
+Huyer, Waltraud and Neumaier, Arnold. Global optimiza-
+tion by multilevel coordinate search. Journal of Global
+Optimization, 14(4):331–355, 1999.
+
+Jamil, Momin and Yang, Xin-She. A literature survey of
+benchmark functions for global optimization problems.
+International Journal of Mathematical Modelling and
+Numerical Optimisation, 4(2):150–194, 2013.
+
+Johnson, Steven G. The NLopt nonlinear-optimization
+package. Retrieved May 15, 2016, from http://
+ab-initio.mit.edu/nlopt, 2014.
+
+Jones, Donald R, Perttunen, Cary D, and Stuckman,
+Bruce E. Lipschitzian optimization without the lipschitz
+constant. Journal of Optimization Theory and Applica-
+tions, 79(1):157–181, 1993.
+
+Jones, Donald R., Schonlau, Matthias, and Welch,
+William J. Efﬁcient global optimization of expensive
+black-box functions. Journal of Global Optimization,
+13(4):455–492, 1998.
+
+Kaelo, Professor and Ali, Montaz. Some variants of the
+controlled random search algorithm for global optimiza-
+tion. Journal of Optimization Theory and Applications,
+130(2):253–264, 2006.
+
+Kan, AHG Rinnooy and Timmer, Gerrit T. Stochastic
+global optimization methods part i: Clustering methods.
+Mathematical Programming, 39(1):27–56, 1987.
+
+Lichman, Moshe. UCI machine learning repository, 2013.
+
+URL http://archive.ics.uci.edu/ml.
+
+Malherbe, C´edric and Vayatis, Nicolas.
+
+approach to global optimization.
+arXiv:1603.04381, 2016.
+
+A ranking
+arXiv preprint
+
+Malherbe, C´edric, Contal, Emile, and Vayatis, Nicolas. A
+ranking approach to global optimization. In In Proceed-
+ings of the 33st International Conference on Machine
+Learning, pp. 1539–1547, 2016.
+
+Martinez-Cantin, Ruben. Bayesopt: A bayesian optimiza-
+tion library for nonlinear optimization, experimental de-
+sign and bandits. The Journal of Machine Learning Re-
+search, 15(1):3735–3739, 2014.
+
+Mladineo, Regina Hunter. An algorithm for ﬁnding the
+global maximum of a multimodal, multivariate function.
+Mathematical Programming, 34(2):188–200, 1986.
+
+Munos, R´emi. From bandits to monte-carlo tree search:
+The optimistic principle applied to optimization and
+planning. Foundations and Trends R(cid:13) in Machine Learn-
+ing, 7(1):1–129, 2014.
+
+Pint´er, J´anos D. Global optimization in action. Scientiﬁc
+
+American, 264:54–63, 1991.
+
+Piyavskii, SA. An algorithm for ﬁnding the absolute ex-
+tremum of a function. USSR Computational Mathemat-
+ics and Mathematical Physics, 12(4):57–67, 1972.
+
+Preux, Philippe, Munos, R´emi, and Valko, Michal. Bandits
+In Evolutionary Compu-
+attack function optimization.
+tation (CEC), 2014 IEEE Congress on, pp. 2245–2252.
+IEEE, 2014.
+
+Rios, Luis Miguel and Sahinidis, Nikolaos V. Derivative-
+free optimization: a review of algorithms and compari-
+son of software implementations. Journal of Global Op-
+timization, 56(3):1247–1293, 2013.
+
+Shubert, Bruno O. A sequential method seeking the global
+maximum of a function. SIAM Journal on Numerical
+Analysis, 9(3):379–388, 1972.
+
+Stein, Michael. Large sample properties of simulations
+using latin hypercube sampling. Technometrics, 29(2):
+143–151, 1987.
+
+Surjanovic, Sonja and Bingham, Derek. Virtual library of
+simulation experiments: Test functions and datasets. Re-
+trieved May 15, 2016, from http://www.sfu.ca/
+˜ssurjano, 2013.
+
+Valko, Michal, Carpentier, Alexandra, and Munos, R´emi.
+In In
+Stochastic simultaneous optimistic optimization.
+Proceedings of the 30th International Conference on
+Machine Learning, pp. 19–27, 2013.
+
+Global optimization of Lipschitz functions
+
+Zhigljavsky, A.A. and Pint´er, J.D. Theory of Global Ran-
+dom Search. Mathematics and its Applications. Springer
+Netherlands, 1991. ISBN 9780792311225.
+
+

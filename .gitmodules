@@ -1,0 +1,3 @@
+[submodule "FakeNews"]
+	path = FakeNews
+	url = https://github.com/dtabarini/FakeNews

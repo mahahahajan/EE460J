@@ -1,0 +1,1172 @@
+Convex Phase Retrieval without Lifting via PhaseMax
+
+Tom Goldstein * 1 Christoph Studer * 2
+
+Abstract
+
+Semideﬁnite relaxation methods transform a va-
+riety of non-convex optimization problems into
+convex problems, but square the number of vari-
+ables. We study a new type of convex relaxation
+for phase retrieval problems, called PhaseMax,
+that convexiﬁes the underlying problem without
+lifting. The resulting problem formulation can
+be solved using standard convex optimization
+routines, while still working in the original, low-
+dimensional variable space. We prove, using a ran-
+dom spherical distribution measurement model,
+that PhaseMax succeeds with high probability for
+a sufﬁciently large number of measurements. We
+compare our approach to other phase retrieval
+methods and demonstrate that our theory accu-
+rately predicts the success of PhaseMax.
+
+1. Introduction
+Semideﬁnite relaxation is the technique of replacing a broad
+range of non-convex optimization problems involving a vec-
+tor of (possibly discrete) variables with convex problems
+involving matrices. The relaxed convex problem is then
+solved to global optimality, and the solution is used to ex-
+tract a global minimizer of the original non-convex problem.
+Unfortunately, convexity comes at a steep cost: semideﬁnite
+relaxation squares the dimensionality of the problem, re-
+sulting in formulations that are convex but computationally
+intractable in many situations. In fact, the increase in di-
+mensionality, which is called lifting, often prevents the use
+of this technique in machine learning and computer vision
+applications involving thousands to millions of variables.
+This article studies convex relaxation for phase retrieval,
+a canonical non-convex problem that can be solved via
+semideﬁnite relaxation. We present a relaxation approach
+that convexiﬁes the problem without lifting, i.e., it solves
+the problem in its original, low-dimensional space.
+
+*Equal contribution 1University of Maryland 2Cornell Univer-
+sity. Correspondence to: Tom Goldstein <tomg at cs.umd.edu>.
+
+Proceedings of the 34 th International Conference on Machine
+Learning, Sydney, Australia, PMLR 70, 2017. Copyright 2017 by
+the author(s).
+
+2. Phase Retrieval Problems
+Phase retrieval deals with the recovery of an n-dimensional
+signal x0 ∈ Hn, with H either R or C, from m ≥ n
+magnitude measurements of the form (Cand`es et al., 2013)
+
+bi = |(cid:104)ai, x0(cid:105)|,
+
+i = 1, 2, . . . , m,
+
+(1)
+
+where ai ∈ Hn, and i = 1, 2, . . . , m are the (known) mea-
+surement vectors. Because of the nonlinearity caused by
+measuring the magnitude of the linear terms in (1), the phase
+retrieval problem is non-convex.
+A variety of algorithms exist for ﬁnding x0 in (1). Classical
+methods, such as the Gerchberg-Saxton and Feinup algo-
+rithms, search for a solution via alternating least-squares
+steps that are efﬁcient when the measurement ensemble {ai}
+forms a tight frame (e.g., a collection of Fourier matrices).
+More recently, there has been signiﬁcant interest in con-
+vex methods for phase retrieval that provably ﬁnd global
+solutions without the danger of getting trapped in local min-
+ima. These methods, including PhaseLift (Cand`es et al.,
+2013) and its dual formulation PhaseCut (Waldspurger et al.,
+2015), rely on semideﬁnite relaxation and replace the un-
+known n-dimensional vector x with a (much larger) n × n
+matrix of unknowns that is recovered using semi-deﬁnite
+programming. While such methods come with strong theo-
+retical guarantees and do not get trapped in local minima,
+they require lifting (semideﬁnite relaxation squares the num-
+ber of unknowns), which makes this approach intractable
+for real-world image processing applications involving thou-
+sands or millions of variables. As a result, there has been
+a ﬂurry of interest in global convergence properties of non-
+convex solvers that operate in the original feature space,
+such as the methods in (Netrapalli et al., 2013; Schniter &
+Rangan, 2015; Cand`es et al., 2015; Chen & Cand`es, 2015;
+Wang et al., 2016). While these methods come with theoret-
+ical guarantees, non-convexity makes it difﬁcult to combine
+them with commonly used regularizers, and typically pre-
+cludes the use of sophisticated optimization methods that
+can handle constraints, non-differentiable terms, etc.
+We note that the PhaseMax formulation has also been pro-
+posed by (Bahmani & Romberg, 2016) and was recently
+analyzed by (Hand & Voroninski, 2016). We discuss and
+compare these results in Section 8.2.
+
+Submission and Formatting Instructions for ICML 2017
+
+3. A Word on Notation
+Scalars are lower-case letters, and vector quantities are
+boldface, lower-case letters. Matrices are boldface upper-
+case letters, and sets are written using upper-case script
+font. We denote the inner product between the vectors
+x, y ∈ Hn as (cid:104)x, y(cid:105) = xT y, and xT is the transpose
+in the real case or the Hermitian transpose in the com-
+plex case. We denote the real part of the inner product
+as (cid:104)x, y(cid:105)(cid:60) = (cid:60)(xT y) and the imaginary part as (cid:104)x, y(cid:105)(cid:61)
+so that (cid:104)x, y(cid:105) = (cid:104)x, y(cid:105)(cid:60) + j(cid:104)x, y(cid:105)(cid:61) with j2 = −1. The
+non-negative reals are denoted R+
+0 .
+We denote the unit sphere embedded in Rn as S n−1
+use S n−1
+of these cases at once, we will often write
+
+, and
+for the sphere in complex space. To address both
+
+C
+
+R
+
+S n−1
+H = {x ∈ Hn |(cid:107)x(cid:107)2 = 1},
+
+where H ∈ {R, C} is either the real or complex numbers.
+4. Proposed Relaxation
+We propose PhaseMax, a formulation of the phase retrieval
+problem that avoids lifting. Put simply, PhaseMax relaxes
+the non-convex equality constraints |(cid:104)ai, x(cid:105)| = bi into con-
+vex inequality constraints of the form |(cid:104)ai, x(cid:105)| ≤ bi. The
+resulting convex problem can then be solved using linear
+programming in the real case or using second-order cone
+programming in the complex case.
+At ﬁrst glance, the proposed relaxation seems too simplistic
+to recover x0. Indeed, the relaxed system of inequalities
+has a trivial solution:
+the all-zeros vector. To obtain a
+meaningful solution, we need to force the solution vector to
+lie on the boundary of the constraint set, where the inequality
+constraints hold with equality. To force the solution to lie on
+the boundary, we rely on some intelligent “guess” ˆx ∈ Hn
+of the solution to (1); we will discuss methods for producing
+such guesses in Section 8.1. We then ﬁnd the feasible point
+that lies as far in the direction of ˆx ∈ Hn as possible. This
+results in the convex optimization problem
+
+x∈Hn
+
+(cid:104)x, ˆx(cid:105)(cid:60)
+
+(PhaseMax)
+
+maximize
+subject to |(cid:104)ai, x(cid:105)| ≤ bi, i = 1, . . . , m.
+The key idea behind PhaseMax is that the objective forces
+the solution vector to lie along the boundary of the constraint
+set, where the constraints are active. Evidently, if all of the
+constraints are active at this solution, then we have recovered
+a solution to the original non-convex problem (1).
+Quite surprisingly, the PhaseMax relaxation provably recov-
+ers the true solution to (1) in many situations. In particular,
+we have the following main result:
+Theorem 1. Consider the case of recovering a signal
+x ∈ Hn from m measurements of the form (1) with measure-
+
+(cid:40)
+
+ment vectors ai, i = 1, 2, . . . , m, sampled independently
+and uniformly from the unit sphere. Let
+
+(cid:19)
+
+(cid:18)
+
+(cid:104)x0, ˆx(cid:105)(cid:60)
+(cid:107)x0(cid:107)2(cid:107)ˆx(cid:107)2
+
+angle(x0, ˆx) = arccos
+
+be the angle between the true vector x0 and the “guess” ˆx,
+and deﬁne the constant
+
+α = 1 −
+
+2
+π
+
+angle(x0, ˆx)
+
+that measures the accuracy of our guess. If H = C, then
+(cid:16)
+whenever αm > 4n − 1, the probability that PhaseMax
+recovers the true signal x0 is at least
+− (αm−4n)2
+
+1 − exp
+
+(cid:17)
+
+(2)
+
+4m
+
+.
+
+Similar results for the real case are derived below.
+
+5. Formulation using Geometric Probability
+Conditions for which PhaseMax enables exact recovery
+can be formulated as a classical problem from geometric
+probability involving random hemispheres, or “caps.” We
+begin with a few simple deﬁnitions. Recall that we use
+to denote the unit sphere embedded in Hn. Given a
+S n−1
+H
+vector a ∈ S n−1
+
+H , the hemisphere cap centered at a is
+CH(a) = {δ ∈ S n−1
+
+H |(cid:104)a, δ(cid:105)(cid:60) ≥ 0}.
+
+is said to be aligned with x ∈ S n−1
+H
+
+we will often consider the set {˜ai} = {sign(cid:0)
+
+(3)
+This cap contains all vectors that form an acute angle with a.
+We also need the concept of aligned vectors. A complex
+vector a ∈ S n−1
+if
+H
+(cid:104)x, a(cid:105) ∈ R+
+0 . In words, two vectors are aligned if their
+inner product is real valued and non-negative. Given a
+vector x and a measurement vector a, we have |(cid:104)ai, x(cid:105)| =
+|(cid:104)ωai, x0(cid:105)| for any unit-magnitude ω ∈ C. For this reason,
+of measurement vectors aligned with x0 without loss of
+generality. Note that replacing {ai} with {˜ai} in PhaseMax
+does not change the feasible set, and thus does not impact
+the recovered solution. Finally, observe that a solution x(cid:63) to
+(PM) must be aligned with ˆx. This is because (cid:104)ωx(cid:63), ˆx(cid:105) =
+|(cid:104)x(cid:63), ˆx(cid:105)| when ω = sign((cid:104)x(cid:63), ˆx(cid:105)) . It follows that x(cid:63) cannot
+be optimal unless sign((cid:104)x(cid:63), ˆx(cid:105)) = 1.
+We are now ready to formulate the following exact recovery
+condition for PhaseMax.
+Theorem 2. Consider the recovery of a vector x0 using
+PhaseMax with guess ˆx. Assume, without loss of generality,
+that ˆx and the measurement ensemble {ai} are aligned
+with x0. Let D = { δ |(cid:104)δ, ˆx(cid:105) ∈ R+
+0 } be the set of unit
+vectors aligned with ˆx. Then, x0 is the unique solution of
+PhaseMax if
+
+(cid:1) ai}
+
+(cid:104)ai, x0(cid:105)
+
+m(cid:91)
+
+i=1
+
+D ⊂
+
+CH(ai).
+
+(4)
+
+Submission and Formatting Instructions for ICML 2017
+
+Proof. Suppose the conditions of this theorem hold, and
+let x(cid:63) be a solution to (PM). Since x0 is in the feasible
+set, x(cid:63) must produce an objective value at least as large as
+x0, and so (cid:104)x(cid:63), ˆx(cid:105) ≥ (cid:104)x0, ˆx(cid:105). We know that x(cid:63) is aligned
+with ˆx. Since x0 is assumed to be aligned with ˆx, the vector
+∆ = x(cid:63) − x0 is also aligned with ˆx, and satisﬁes
+
+(cid:104)∆, ˆx(cid:105) = (cid:104)x(cid:63), ˆx(cid:105) − (cid:104)x0, ˆx(cid:105) ≥ 0.
+
+Since x(cid:63) is a feasible solution for (PM), we have
+
+|(cid:104)ai, x0 + ∆(cid:105)|2 = |(cid:104)ai, x0(cid:105)|2+
+
+2[(cid:104)ai, x0(cid:105)∗(cid:104)ai, ∆(cid:105)](cid:60) + |(cid:104)ai, ∆(cid:105)|2 ≤ b2
+
+(5)
+i , and ai is aligned with x0.
+
+i , ∀i.
+
+Now, recall that |(cid:104)ai, x0(cid:105)|2 = b2
+Hence, we get
+
+(cid:104)ai, ∆(cid:105)(cid:60) ≤ −
+
+1
+2|(cid:104)ai, ∆(cid:105)|2 ≤ 0, ∀i.
+
+(6)
+
+If (cid:107)∆(cid:107)2 > 0, then we see from (6) that the unit-length vec-
+tor δ = ∆/(cid:107)∆(cid:107)2 satisﬁes δ (cid:54)∈ C(ai),∀i, which contradicts
+the covering condition (4). It follows that (cid:107)∆(cid:107)2 = 0 and
+x(cid:63) = x0.
+
+6. Sphere Covering Results
+Theorem 2 states that exact recovery of x0 occurs when
+the measurement ensemble {ai} is aligned with x0, and the
+set D is covered by the caps {CH(ai)}. We now study the
+probability that this condition holds. To do so, we need a
+few elementary sphere covering results. Our proof builds
+on the following simple result.
+R ⊂ Rn using
+Lemma 1. Suppose we slice the sphere S n−1
+k planes through the origin. Then we divide the sphere into
+(cid:19)
+as most
+
+n−1(cid:88)
+
+(cid:18)k − 1
+
+i
+
+r(n, k) = 2
+
+regions.
+
+i=0
+
+(7)
+
+Lemma 1 appears to have been ﬁrst proved by (Schl¨aﬂi,
+1953), and simple induction arguments can be found in
+(Wendel, 1962; Gilbert, 1965; F¨uredi, 1986).
+Before we attack the problem of when (4) holds, we begin
+with a simpler question: “how often is a sphere covered
+by caps with centers chosen at random from the sphere?”
+This question has been studied in detail by Gilbert (Gilbert,
+1965) in the case n = 3. For our purposes, we need to study
+the covering probability in the more general case when caps
+are only chosen from a subset of the sphere, and the sphere
+can have arbitrarily high dimension. We show below that
+calculating this probability is easy when the caps are chosen
+from a symmetric subset of the sphere. We say that the set
+A is symmetric if, for all x ∈ A, we also have −x ∈ A.
+A probability measure deﬁned over A is symmetric if the
+measure of a is the same as −a for every a ⊂ A.
+Lemma 2. Consider some non-empty symmetric set A ⊂
+i=1 at
+. Choose some set of mA
+S n−1
+R
+random from A using a symmetric measure. Then, the caps
+{CR(ai)} cover the sphere S n−1
+1
+
+measurements {ai}mA
+(cid:18)mA − 1
+(cid:19)
+with probability
+n−1(cid:88)
+
+R
+
+.
+
+pcover(mA, n) ≥ 1 −
+
+k
+
+2mA−1
+
+k=0
+
+This is the probability of getting n or more heads when
+ﬂipping mA − 1 fair coins.
+Proof. Let {a(cid:48)i} be a collection of m i.i.d. vectors sampled
+from A using a symmetric measure. Deﬁne ai = cia(cid:48)i,
+where {ci} are i.i.d. Bernoulli variables that take value +1
+or −1 with probability 1
+2 . Clearly, the random vectors {ai}
+are i.i.d. with the same distribution as {a(cid:48)i}.
+Consider the set(cid:92)
+
+(cid:92)
+
+(8)
+
+CR(−ai) =
+
+i
+
+i
+
+CR(−cia(cid:48)i),
+
+R
+
+Proof. The proof is by induction. As a base case, we have
+r(n, 1) = 2 and r(2, k) = 2k for k ≥ 1. Now suppose
+we have a sphere S n−1
+in n dimensions sliced by k − 1
+planes into r(n, k − 1) “original” regions. Consider the
+effect of adding a kth plane, pk. The number of new regions
+created is equal to the number of original regions that are
+intersected by pk. To count the number of new regions, we
+project the k − 1 original normal vectors into pk, and count
+the minimal number of regions formed inside pk by the
+resulting projected planes, which is at most r(n − 1, k − 1).
+Adding this to the number of original regions yields
+r(n, k) = r(n, k − 1) + r(n − 1, k − 1).
+
+We leave it to the reader to verify that (7) satisﬁes this
+recurrence relation.
+
+which contains all points not covered by the caps {CR(ai)}.
+The caps {CR(ai)} cover the sphere whenever the intersec-
+tion (8) is empty. There are 2mA such intersections that
+(cid:8)
+can be formed, one for each choice of the sequence {ci}.
+Now, from Lemma 1, we know that the mA random planes
+{x|(cid:104)ai, x(cid:105) = 0}
+non-empty regions. Each of these regions corresponds to the
+intersection (8) for one possible choice of {ci}. Therefore,
+of the 2mA possible intersections, at most r(n, mA) of them
+are non-empty. Since each intersection is equally likely, the
+probability of covering the sphere is at least
+
+(cid:9) divide the sphere into at most r(n, mA)
+
+pcover(mA, n) ≥ 1 −
+
+r(n, mA)
+
+2mA
+
+.
+
+Submission and Formatting Instructions for ICML 2017
+
+Remark:
+It can be shown that the bound in Lemma 1
+is tight/exact when the slicing planes are chosen from a
+continuous probability distribution. Similarly, the bound
+in Lemma 2 is exact when the set {ai} is sampled from a
+continuous distribution over A.
+We are now ready to present our main result. Exact recovery
+theorems for PhaseMax will follow immediately from the
+following geometric theorem. The result considers the case
+where the measurement vectors are drawn from only one
+hemisphere.
+Lemma 3. Consider two vectors x, y ⊂ S n−1
+, and the
+π angle(x, y) be a
+caps CR(x) and CR(y). Let α = 1 − 2
+measure of the similarity between the vectors x and y. Draw
+some collection {ai ∈ CR(x)}m
+i=1 of m vectors uniformly
+(cid:91)
+from CR(x) so that α(m − 1) > 2n. Then,
+(cid:18)
+
+holds with probability at least
+
+CR(y) ⊂
+
+CR(ai)
+
+R
+
+i
+
+pcover(m, n; x, y) ≥ 1 − exp
+
+−
+
+(αm − α − 2n)2
+
+2m − 2
+
+(cid:19)
+
+.
+
+ ai,
+
+Proof. To simplify notation, we assume y = [1, 0, . . . , 0]T .
+Because of rotational symmetries this does not change the
+generality of our proof. Consider the reﬂection of x over y
+given by ˜x = [x1,−x2, . . . ,−xn]T . Suppose we have some
+collection {ai} independently and uniformly distributed on
+the entire sphere. Consider the collection of vectors
+
+a(cid:48)i =
+
+ai − 2(cid:104)ai, y(cid:105)y,
+−ai,
+
+if (cid:104)ai, x(cid:105) ≥ 0
+(9)
+if (cid:104)ai, x(cid:105) < 0,(cid:104)ai, ˜x(cid:105) < 0 (10)
+if (cid:104)ai, x(cid:105) < 0,(cid:104)ai, ˜x(cid:105) ≥ 0. (11)
+The mapping ai → a(cid:48)i maps the half sphere {a|(cid:104)a, x(cid:105) < 0}
+onto the half sphere {a|(cid:104)a, x(cid:105) > 0} using a combination
+of reﬂections and translations (see Figure 1). This makes
+the mapping ai → a(cid:48)i onto and (piecewise) isometric, and
+so {a(cid:48)i} will be uniformly distributed over the half sphere
+{a|(cid:104)a, x0(cid:105) > 0} whenever {ai} is independently and uni-
+formly distributed over the entire sphere.
+Consider the “hourglass” shaped, symmetric set
+
+A = {a|(cid:104)a, x(cid:105) ≥ 0,(cid:104)a, ˜x(cid:105) ≥ 0}
+
+(cid:83)
+We claim that CR(y) ⊂
+S n−1
+R ⊂
+
+CR(ai).
+
+ai∈A
+
+∪ {a|(cid:104)a, x(cid:105) ≤ 0,(cid:104)a, ˜x(cid:105) ≤ 0}.
+(cid:91)
+i CR(a(cid:48)i) whenever
+
+(12)
+
+In words, if the caps deﬁned by the subset of {ai} in A
+cover the entire sphere, then the caps {CR(a(cid:48)i)} (which have
+
+Figure 1. An illustration showing the construction of x, y, and ˜x
+in the proof of Lemma 3.
+
+centers in CR(x)) not only cover CR(x), but also cover the
+nearby cap CR(y). To justify this claim, suppose that (12)
+holds. Choose some δ ∈ CR(y). This point is covered by
+some cap CR(ai) with ai ∈ A. If (cid:104)ai, x(cid:105) ≥ 0, then ai = a(cid:48)i
+and δ is covered by CR(a(cid:48)i). If (cid:104)ai, x(cid:105) < 0, then
+
+(cid:104)δ, a(cid:48)i(cid:105) = (cid:104)δ, ai − 2(cid:104)ai, y(cid:105)y(cid:105)
+
+= (cid:104)δ, ai(cid:105) − 2(cid:104)ai, y(cid:105)(cid:104)δ, y(cid:105) ≥ (cid:104)δ, ai(cid:105) ≥ 0.
+
+Note we have used the fact that (cid:104)δ, y(cid:105) is real-valued and non-
+negative because δ ∈ CR(y). We have also used (cid:104)ai, y(cid:105) =
+2 ((cid:104)ai, x(cid:105) + (cid:104)ai, ˜x(cid:105)) < 0, which follows from the
+[ai]1 = 1
+deﬁnition of ˜x and the deﬁnition of A. Since (cid:104)δ, a(cid:48)i(cid:105) ≥ 0,
+we have δ ∈ CR(a(cid:48)i), which proves our claim.
+We can now see that the probability that CR(y) ⊂
+i CR(a(cid:48)i)
+is at least as high as the probability that (12) holds. Let
+pcover(m, n; x, y | mA) denote the probability of covering
+C(y) conditioned on the number mA of points lying in A.
+From Lemma 2, we know that pcover(m, n; x, y | mA) ≥
+pcover(mA, n). As noted in Lemma 2, this is the chance of
+turning up n or more heads when ﬂipping mA− 1 fair coins,
+which is one coin for every measurement ai in A. This
+probability pcover(m, n; x, y) is
+
+(cid:83)
+
+pcover(m, n; x, y) = EmA [pcover(m, n; x, y | mA)]
+
+≥ EmA [pcover(mA, n)].
+
+Let’s evaluate this expectation. The region A is deﬁned by
+two planes that intersect at an angle of β = angle(x, ˜x) =
+2 angle(x, y). The probability of a random point ai lying in
+A is given by α = 2π−2β
+π , which is the fraction
+of the unit sphere that lies either above or below both planes.
+The probability of a measurement ai contributing to the
+heads count is half the probability of it lying in A, or 1
+2 α.
+
+2π = 1 − 2β
+
+x˜xySn 1Rha,xi<0ha,˜xi<0ha,xi<0ha,˜xi<0andSubmission and Formatting Instructions for ICML 2017
+
+The probability of turning up n or more heads is therefore
+given by
+
+pcover(m, n; x, y) =
+
+(cid:19)k(cid:18)
+
+n−1(cid:88)
+
+(cid:18) 1
+
+2
+
+k=0
+
+α
+
+1 −
+
+(cid:19)m−k−1(cid:18)m − 1
+
+(cid:19)
+
+.
+
+(13)
+
+k
+
+1
+2
+
+α
+
+1 −
+
+Our ﬁnal result is obtained by applying Hoeffding’s inequal-
+ity to (13).
+
+(cid:18)
+
+(cid:19)
+
+,
+
+7. Recovery Guarantees for PhaseMax
+Using the covering result of Lemma 3, together with the
+covering formulation of the exact recovery condition (4),
+proving exact recovery of PhaseMax is now rather straight-
+forward. We begin with the real-valued case.
+Theorem 3. Consider the case of recovering a real-valued
+signal x0 ∈ Rn from m measurements of the form (1) with
+i.i.d. and uniform vectors {ai ∈ S n−1
+}. PhaseMax recovers
+the true signal x0, with probability at least
+
+R
+
+pR(m, n) ≥ 1 − exp
+
+−(αm − α − 2n)2
+
+2m − 2
+
+π angle(x0, ˆx) and α(m − 1) > 2n.
+
+where α = 1 − 2
+Proof. Consider the set of m independent and uniformly
+sampled measurements {ai ∈ S n−1
+i=1. The aligned vec-
+}m
+tors {˜ai = phase((cid:104)ai, x0(cid:105))ai} are uniformly distributed
+over the half sphere CR(x0). Exact reconstruction happens
+when the condition in Lemma 2 holds. To bound this proba-
+bility, we invoke Lemma 3 with x = x0 and y = ˆx.
+
+R
+
+We have an analogous result in the complex case.
+Theorem 4. Consider the case of recovering a complex-
+valued signal x0 ∈ Rn from m measurements of the form
+}. PhaseMax
+(1) with i.i.d. and uniform vectors {ai ∈ S n−1
+(cid:19)
+recovers the true signal x0, with probability at least
+
+(cid:18)
+
+R
+
+pC(m, n) ≥ 1 − exp
+
+−(αm − 4n)2
+
+,
+
+4m
+
+π angle(x0, ˆx) and αm > 4n + 1.
+
+where α = 1 − 2
+Proof. Let {˜ai} = {phase((cid:104)ai, x0(cid:105))ai} be aligned mea-
+surement vectors. Deﬁne the half sphere of aligned ascent
+directions
+
+By Lemma 2, PhaseMax recovers x0 if
+
+|(cid:104)δ, ˆx(cid:105) ∈ R+
+0 }.
+
+C
+
+DC = {δ ∈ S n−1
+(cid:91)
+
+DC ⊂
+
+i
+
+CC(˜ai).
+
+(14)
+
+Let us bound the probability of this event. Consider the
+set A = {δ |(cid:104)δ, x0(cid:105)(cid:61) = 0}. We now claim that (14) holds
+whenever
+
+CC(ˆx) ∩ A ⊂
+
+CC(˜ai).
+
+(15)
+
+(cid:91)
+
+i
+
+To prove this claim, consider some δ ∈ DC. To keep no-
+tation light, we will assume without loss of generality that
+(cid:107)x0(cid:107)2 = 1. Form the vector δ(cid:48) = δ + j(cid:104)δ, x0(cid:105)(cid:61) x0, which
+is the projection of δ onto A. Suppose now that (15) holds.
+Since δ(cid:48) ∈ CC(ˆx) ∩ A, there is some i with δ(cid:48) ∈ CC(˜ai).
+But then
+
+(16)
+(17)
+
+0 ≤ (cid:104)δ(cid:48), ˜ai(cid:105)(cid:60) = (cid:104)δ, ˜ai(cid:105)(cid:60) + (cid:104)j(cid:104)δ, x0(cid:105)(cid:61) x0, ˜ai(cid:105)(cid:60)
+
+that
+
+= (cid:104)δ, ˜ai(cid:105)(cid:60).
+We have used the fact
+(cid:104)j(cid:104)δ, x0(cid:105)(cid:61) x0, ˜ai(cid:105) =
+j(cid:104)δ, x0(cid:105)(cid:61)(cid:104)˜ai, x0(cid:105), which is imaginary valued and thus has
+no real component. We see that δ ∈ CC(˜ai), and the claim
+is proved.
+We now know that exact reconstruction happens when-
+is
+ever condition (15) holds. Note that the sphere Sn−1
+, and the set A is isomorphic to the
+isomorphic to S2n−1
+sphere S2n−2
+. The aligned vectors {˜ai} are uniformly dis-
+tributed over a half sphere in CC(x0) ∩ A, which is isomor-
+. The probability of
+phic to the upper half sphere in S2n−2
+these vectors covering the cap CC(ˆx) ∩ A is thus given by
+pcover(m, 2n − 1; x0, ˆx) from Lemma 3, which is at least
+
+C
+
+R
+
+R
+
+R
+
+(cid:18)
+
+1 − exp
+
+−(αm − α − 4n + 2)2
+
+4m − 4
+
+(cid:19)
+
+.
+
+We can simplify this by using the fact that α < 1. We
+also throw away the small constants in the numerator and
+denominator, which weakens the bound very slightly but
+tidies up the result.
+
+8. Experiments and Discussion
+8.1. Initialization Methods
+
+A variety of methods exist for generating the initial
+guess x0. The simplest approach is to use a random vec-
+tor; see (Goldstein & Studer, 2016) for a corresponding
+analysis and exact recovery proof in this case. A more pow-
+erful method is the truncated spectral initializer (Chen &
+Cand`es, 2015), which is a reﬁnement of the method put
+forward in (Netrapalli et al., 2013). A detailed analysis of
+such initializers is provided in (Lu & Li, 2017). As proved
+in Prop. 8 of (Chen & Cand`es, 2015), for any δ < √2,
+there is a constant c0 such that, with probability exceeding
+1 − exp(−c0m), a unit-length version of the approxima-
+tion vector ˆx computed by the truncated spectral initializer
+satisﬁes 1 − δ2
+2 ≤ |(cid:104)x0, ˆx(cid:105)|, provided that m > c1n for
+
+Submission and Formatting Instructions for ICML 2017
+
+Table 1. Comparison of theoretical recovery guarantees for noiseless phase retrieval.
+
+Algorithm
+
+PhaseMax
+PhaseLift (Cand`es & Li, 2014) m ≥ c0n
+m ≥ c0n
+TWF (Cand`es & Li, 2014)
+m ≥ c0n
+m > 32
+
+TAF (Wang et al., 2016)
+
+(Bahmani & Romberg, 2016)
+(Hand & Voroninski, 2016)a
+
+m > c0n
+
+Sample complexity
+m > (4n − 1)/α + 1
+
+sin4(α) log(cid:0)
+
+(cid:1)n
+
+8e
+
+sin4(α)
+
+Lower bound on pC(m, n)
+1 − e−(α(m−1)−4n+2)2/(2m−2)
+1 − c1e−c2m
+1 − c1e−c2m
+1 − (m + 5)e−n/2 − c1e−c2m − 1/n2
+1 − 8e
+1 − 6e−c2m
+
+− sin4(α)
+
+M− 32
+
+sin4(α)
+
+sin4(α)
+
+(cid:0)
+
+(cid:0)
+
+(cid:1)
+
+log
+
+8e
+
+N
+
+(cid:1)
+
+/16
+
+aThe theory only guarantees recovery for real-valued measurements.
+
+some constant c1 > 0. This implies that the approximation
+accuracy satisﬁes
+
+(cid:18)
+
+(cid:19)
+
+2
+π
+
+> 0
+
+(18)
+
+δ2
+2
+
+1 −
+
+arccos
+
+α =1 −
+
+angle(x0, ˆx)
+
+2
+π
+≥ 1 −
+with high probability.
+This motivates the following process that recovers x0 using
+a number of measurements that grows linearly with n. First,
+choose some δ < √2 and calculate α from (18). Next,
+generate a spectral initializer ˆx using c1 random Gaussian
+measurements. This initializer has accuracy α with high
+probability. Finally, using 5n/α (the constant in this expres-
+sion must be larger than 4 to guarantee recovery with high
+probability) additional random Gaussian measurements, re-
+cover the vector x0 using PhaseMax. This recovery step
+succeeds with high probability when n is large. This pro-
+cess recovers x0 using (5/α + c1)n measurements, which is
+linear in n. For a more detailed analysis with no unspeciﬁed
+constants, see (Goldstein & Studer, 2016).
+A simpler recovery approach only samples max{5/α, c1}n
+measurements, and then uses the same set of measurements
+for both the initialization and recovery. This process works
+well in practice, and is used in the experiments below. Tech-
+nically, our results assume the measurements {ai} are inde-
+pendent of ˆx, and so our theory does not formally guarantee
+convergence in this case. For an analysis that considers
+the case where {ai} and ˆx are dependent, we refer to the
+analysis in (Bahmani & Romberg, 2016).
+
+8.2. Comparison to Other Phase Retrieval Methods
+
+We compare PhaseMax with other recovery methods, in-
+cluding lifted convex methods and non-convex approaches.
+Table 1 lists the sample complexity (measurements needed
+to achieve exact recovery with 0.5 probability) of various
+phase retrieval methods as a function of the number of un-
+
+knowns n. We also list the probability of reconstruction
+from m measurements. We see that PhaseMax requires the
+same sample complexity (O(n)) as compared to PhaseLift,
+TWF, and TAW, when used together with the truncated spec-
+tral initializer proposed in (Cand`es & Li, 2014).
+The recovery bounds for all other methods require unspec-
+iﬁed constants (ci in Table 1) that are generally extremely
+large and require a lower bound on the initialization accu-
+racy. In contrast, the bounds for PhaseMax contain no un-
+speciﬁed constants, explicitly depend on the approximation
+factor α, and our new analytical approach yields extremely
+sharp bounds (see below for the details).
+We also compare in Table 1 to a different analysis of the
+PhaseMax formulation by (Bahmani & Romberg, 2016) that
+appeared shortly before our own, and to a later analysis by
+(Hand & Voroninski, 2016). By using methods from ma-
+chine learning theory, (Bahmani & Romberg, 2016) produce
+exact reconstruction bounds that, for a speciﬁed value of α,
+are uniform with respect to the initialization ˆx, and thus
+guarantee exact signal recovery in the case that ˆx is depen-
+dent on the measurement vectors. The analysis presented
+here is weaker in the sense that is does not have this uni-
+formity property, but stronger in the sense that it produces
+tighter bounds without unspeciﬁed constants. The bounds
+by (Hand & Voroninski, 2016) require unspeciﬁed constants,
+but the authors show that PhaseMax can be analyzed using
+standard concentration of measure arguments.
+
+8.3. Tightness of Guarantees
+
+By using strong concentration bounds for the unit sphere,
+our analysis produces sharp recovery guarantees that lie
+close to behavior observed in practice. In Figure 2, we use
+random Gaussian test problems and the accelerated gradient-
+based solver described in (Goldstein et al., 2014) to plot
+the empirical and theoretical probabilities of exact signal
+recovery for n = 100 and n = 500 measurements while
+varying the accuracy β = angle(ˆx, x0) of the initial guess.
+
+Submission and Formatting Instructions for ICML 2017
+
+Figure 2. Comparison between the empirical success probability (solid lines) and our theoretical lower bound (dashed lines) for varying
+angles β between the true signal and the approximation vector. Our theoretical results accurately characterize the empirical success
+probability of PhaseMax. Furthermore, PhaseMax exhibits a sharp phase transition for larger dimensions.
+
+We declared exact recovery when the relative error of the
+recovered signal fell below 10−5.
+Our theoretical bounds tend to agree fairly closely with
+observations, and generally require fewer than 50% more
+measurements than is needed in practice. We also observe
+a sharp phase transition between inaccurate and accurate
+recovery, as predicted by our theory.
+
+8.4. Performance Limits of PhaseMax
+
+To compare PhaseMax to other phase retrieval methods, we
+observe the accuracy of signal reconstruction as a function
+of the number of measurements. We emphasize that this
+comparison is only done in the random Gaussian problem
+setting, and results may differ with different types of signal,
+measurement, and noise models. The sole purpose of this
+experiment is to explore the efﬁcacy and limits of PhaseMax,
+and to test the tightness of the predicted recovery guarantees.
+For an extensive comparison between existing methods, see
+(Waldspurger et al., 2015; Jaganathan et al., 2015)). We com-
+pare the Gerchberg-Saxton algorithm (Gerchberg & Saxton,
+1972), the Fienup algorithm (Fienup, 1982), the truncated
+Wirtinger ﬂow (Chen & Cand`es, 2015), and PhaseMax. All
+methods were initialized using the truncated spectral initial-
+izer (Chen & Cand`es, 2015).
+We also run simulations using the semideﬁnite relaxation
+method PhaseLift (Cand`es et al., 2013) implemented using a
+proximal gradient solver. PhaseLift, and its equivalent dual
+formulation PhaseCut (Waldspurger et al., 2015), is the only
+convex alternative to PhaseMax. However, unlike Phase-
+Max, PhaseLift/PhaseCut “lifts” the problem to a higher
+
+dimension and squares the number of unknowns.
+Figure 3 reveals that PhaseMax requires larger oversam-
+pling ratios m/n to enable faithful signal recovery com-
+pared to non-convex phase-retrieval algorithms that oper-
+ate in the original signal dimension. This is because the
+truncated spectral initializer requires oversampling ratios
+of about six or higher to yield sufﬁciently accurate ap-
+proximation vectors ˆx that enable PhaseMax to succeed.
+While PhaseMax does not achieve exact reconstruction with
+the lowest number of measurements, it is convex, operates
+in the original signal dimension, can be implemented via
+solvers for Basis Pursuit, and comes with sharp perfor-
+mance guarantees that do not sweep constants under the rug
+(cf. Figure 2).
+The convexity of PhaseMax enables a natural extension
+to sparse phase retrieval (Jaganathan et al., 2013; Shecht-
+man et al., 2014) or other signal priors (e.g., total variation,
+group sparsity, or bounded inﬁnity norm) that can be for-
+mulated with convex functions. Such non-differentiable
+priors cannot be efﬁciently minimized using simple gradient
+descent methods (which form the basis of Wirtinger or am-
+plitude ﬂow, and many other methods), but can potentially
+be solved using standard convex solvers when combined
+with the PhaseMax formulation.
+
+9. Conclusions
+We have proposed a convex relaxation for phase retrieval
+problems called PhaseMax that does not require lifting. Us-
+ing methods from geometric probability, we have provided
+tight bounds on the probability of correct signal recovery.
+
+2468101200.20.40.60.81Oversamplingratiom/nSuccessprobabilitypC(m,n)β=45◦β=36◦β=25◦2468101200.20.40.60.81Oversamplingratiom/nSuccessprobabilitypC(m,n)β=45◦β=36◦β=25◦Submission and Formatting Instructions for ICML 2017
+
+(a) n = 100
+
+(b) n = 500
+
+Figure 3. Comparison of the relative reconstruction error. We use the truncated spectral initializer for Gerchberg-Saxton (GS), Fienup,
+truncated Wirtinger ﬂow (TWF), truncated amplitude ﬂow (TAF), and PhaseMax. PhaseMax does not achieve exact recovery for the
+lowest number of measurements among the considered methods, but is convex, operates in the original dimension, and comes with sharp
+performance guarantees. PhaseLift only terminates in reasonable computation time for n = 100.
+
+The proposed problem and its analysis also represents a
+radical departure, both in theory and algorithms, from con-
+ventional methods for convex or semideﬁnite relaxation. By
+providing a convex relaxation for phase retrieval in the na-
+tive parameter space, our approach opens the door for using
+a broad range of convex optimization routines, regularizers,
+and priors to solve phase retrieval or related problems in
+machine learning, computer vision, or signal processing.
+Finally, the new analytical methods used in this paper have
+recently been used to prove tight reconstruction bounds
+for bi-convex problems outside the ﬁeld of phase retrieval
+(Aghasi et al., 2017), and may be broadly applicable to a
+wide range of signal processing problems.
+
+Acknowledgments
+The work of T. Goldstein was supported in part by the
+US National Science Foundation (NSF) under grant CCF-
+1535902, by the US Ofﬁce of Naval Research under grant
+N00014-17-1-2078, and by the Sloan Foundation. The work
+of C. Studer was supported in part by Xilinx, Inc. and by
+the US NSF under grants ECCS-1408006, CCF-1535897,
+and CAREER CCF-1652065.
+
+References
+Aghasi, A., Ahmed, A., and Hand, P. Branchhull: Convex
+bilinear inversion from the entrywise product of signals
+with known signs. arXiv preprint :1702.04342, Feb. 2017.
+
+Bahmani, S. and Romberg, J. Phase retrieval meets statisti-
+cal learning theory: A ﬂexible convex relaxation. arXiv
+preprint: 1610.04210, Oct. 2016.
+
+Cand`es, E. J. and Li, X. Solving quadratic equations via
+PhaseLift when there are about as many equations as
+unknowns. Found. Comput. Math., 14(5):1017–1026,
+Oct. 2014.
+
+Cand`es, E. J., Strohmer, T., and Voroninski, V. PhaseLift:
+Exact and stable signal recovery from magnitude mea-
+surements via convex programming. Commun. Pure Appl.
+Math., 66(8):1241–1274, 2013.
+
+Cand`es, J. E., Li, X., and Soltanolkotabi, M. Phase retrieval
+via Wirtinger ﬂow: Theory and algorithms. IEEE Trans.
+Inf. Theory, 61(4):1985–2007, Feb. 2015.
+
+Chen, Y. and Cand`es, E. Solving random quadratic systems
+of equations is nearly as easy as solving linear systems.
+In Adv. Neural Inf. Process. Syst., pp. 739–747, 2015.
+
+Fienup, J. R. Phase retrieval algorithms: a comparison. Appl.
+
+Opt., 21(15):2758–2769, Aug. 1982.
+
+F¨uredi, Z. Random polytopes in the d-dimensional cube.
+
+Disc. Comput. Geom., 1(4):315–319, Dec. 1986.
+
+Gerchberg, R. W. and Saxton, W. O. A practical algorithm
+for the determination of phase from image and diffraction
+plane pictures. Optik, 35:237–246, Aug. 1972.
+
+24681012−80−60−40−200Oversamplingratiom/nRelativereconstructionerror[dB]GSFienupTWFTAFPhaseLiftPhaseMax24681012−80−60−40−200Oversamplingratiom/nRelativereconstructionerror[dB]GSFienupTWFTAFPhaseMaxSubmission and Formatting Instructions for ICML 2017
+
+Gilbert, E. N. The probability of covering a sphere with n
+circular caps. Biometrika, 52(3/4):323–330, Dec. 1965.
+Goldstein, T. and Studer, C. PhaseMax: convex phase
+retrieval via basis pursuit. arXiv preprint: 1610.07531,
+Oct. 2016.
+
+Goldstein, T., Studer, C., and Baraniuk, R. A ﬁeld guide to
+forward-backward splitting with a FASTA implementa-
+tion. arXiv preprint: 1411.3406, Feb. 2014.
+
+Goldstein, T., Li, M., and Yuan, X. Adaptive primal-dual
+splitting methods for statistical learning and image pro-
+cessing. In Advances in Neural Information Processing
+Systems, pp. 2089–2097, 2015.
+
+Hand, P. and Voroninski, V. An elementary proof of convex
+phase retrieval in the natural parameter space via the
+linear program PhaseMax. arXiv preprint: 1611.03935,
+Nov. 2016.
+
+Jaganathan, K., Oymak, S., and Hassibi, B. Sparse phase
+retrieval: Convex algorithms and limitations. In Proc.
+IEEE Int. Symp. Inf. Theory (ISIT), pp. 1022–1026, Jul.
+2013.
+
+Jaganathan, K., Eldar, Y. C., and Hassibi, B. Phase retrieval:
+An overview of recent developments. arXiv:1510.07713,
+Oct. 2015.
+
+Lu, Y. M. and Li, G. Phase transitions of spectral initializa-
+tion for high-dimensional nonconvex estimation. arXiv
+preprint: 1702.06435, 2017.
+
+Netrapalli, P., Jain, P., and Sanghavi, S. Phase retrieval using
+alternating minimization. In Adv. Neural Inf. Process.
+Syst., pp. 2796–2804, 2013.
+
+Schl¨aﬂi, L. Gesammelte Mathematische Abhandlungen I.
+
+Springer Basel, 1953.
+
+Schniter, P. and Rangan, S. Compressive phase retrieval via
+generalized approximate message passing. IEEE Trans.
+Sig. Process., 63(4):1043–1055, Feb. 2015.
+
+Shechtman, Y., Beck, A., and Eldar, Y. C. GESPAR: efﬁ-
+cient phase retrieval of sparse signals. IEEE Trans. Sig.
+Process., 62(4):928–938, Jan. 2014.
+
+Studer, C., Goldstein, T., Yin, W., and Baraniuk, R. G.
+Democratic representations. arXiv preprint: 1401.3420,
+Jan. 2014.
+
+Waldspurger, I., d’Aspremont, A., and Mallat, S. Phase
+recovery, maxcut and complex semideﬁnite programming.
+Math. Prog., 149(1-2):47–81, Feb. 2015.
+
+Wang, G., Giannakis, G. B., and Eldar, Y. C. Solving
+systems of random quadratic equations via truncated am-
+plitude ﬂow. arXiv: 1605.08285, Jul. 2016.
+
+Wendel, J. G. A problem in geometric probability. Math.
+
+Scand., 11:109–111, 1962.
+
+

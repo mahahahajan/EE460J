@@ -1,0 +1,1366 @@
+Safety-Aware Algorithms for Adversarial Contextual Bandit
+
+Wen Sun 1 Debadeepta Dey 2 Ashish Kapoor 2
+
+Abstract
+
+In this work we study the safe sequential decision
+making problem under the setting of adversar-
+ial contextual bandits with sequential risk con-
+straints. At each round, nature prepares a context,
+a cost for each arm, and additionally a risk for
+each arm. The learner leverages the context to
+pull an arm and receives the corresponding cost
+and risk associated with the pulled arm. In addi-
+tion to minimizing the cumulative cost, for safety
+purposes, the learner needs to make safe deci-
+sions such that the average of the cumulative risk
+from all pulled arms should not be larger than a
+pre-deﬁned threshold. To address this problem,
+we ﬁrst study online convex programming in the
+full information setting where in each round the
+learner receives an adversarial convex loss and a
+convex constraint. We develop a meta algorithm
+leveraging online mirror descent for the full in-
+formation setting and then extend it to contextual
+bandit with sequential risk constraints setting us-
+ing expert advice. Our algorithms can achieve
+near-optimal regret in terms of minimizing the
+total cost, while successfully maintaining a sub-
+linear growth of accumulative risk constraint vi-
+olation. We support our theoretical results by
+demonstrating our algorithm on a simple simu-
+lated robotics reactive control task.
+
+1. Introduction
+The topic of Safe Sequential Decision Making recently has
+received a lot of attention (Amodei et al., 2016) and ﬁnds its
+importance in different applications ranging from robotics,
+artiﬁcial intelligence and clinical trials. Designing reactive
+controls for mobile robots requires reasoning and making
+safe decisions so that robots can minimize the risk of dan-
+gerous obstacle collision. In clinical trials the risk of the
+
+1Robotics Institute, Carnegie Mellon University, USA
+2Microsoft Research, Redmond, USA. Correspondence to: Wen
+Sun <wensun@cs.cmu.edu>.
+
+Proceedings of the 34 th International Conference on Machine
+Learning, Sydney, Australia, PMLR 70, 2017. Copyright 2017 by
+the author(s).
+
+side-effect of a new treatment must be taken into considera-
+tion for patients’ safety. In general these applications will
+require the risk (probability of collision, level of side-effect)
+to be less than some safe-threshold. In this work we study
+safe sequential decision making under the setting of adver-
+sarial contextual bandits with sequential risk constraints.
+The Contextual Bandits problem (Langford & Zhang, 2008)
+is a classic framework for studying sequential decision mak-
+ing with rich contextual information. In each round, given
+the contextual information, the learner chooses an arm (i.e.,
+a decision) to pull based on the history of the interaction
+with the environment, and then receives the reward asso-
+ciated with the pulled arm. For the special case where
+contexts and rewards are i.i.d sampled from ﬁxed unknown
+distributions, there exists an oracle-based computationally
+efﬁcient algorithm (Agarwal et al., 2014) that achieves near-
+optimal regret rate. For adversarial contexts and rewards,
+EXP4 (Auer et al., 2002) and EXP4.P (Beygelzimer et al.,
+2011) are state-of-the-art algorithms, which achieve near-
+optimal regret rate, but are not computationally efﬁcient
+in general. Recently, a few authors have started to incor-
+porate global constraints into multi-armed bandit and con-
+textual bandits problem where the goal of the learner is to
+maximize the reward while satisfying a global constraint
+to some degree. Previous work considered special cases
+such as single resource budget constraint (Ding et al., 2013;
+Madani et al., 2004) and multiple resources budget con-
+straints (Badanidiyuru et al., 2013). Resourceful Contextual
+Bandits (Badanidiyuru et al., 2014) ﬁrst introduced resource
+budget constraint to contextual bandits. Later on, the au-
+thors in (Agrawal et al., 2015) generalize the setting to a
+setting with a global convex constraint and a concave ob-
+jective. Recently (Agrawal & Devanur, 2015) introduce a
+Upper Conﬁdence Bound (UCB) style algorithm for linear
+contextual bandits with knapsack constraints. The settings
+considered in these previous work mainly focused on the
+stochastic case where contexts and rewards are i.i.d, and
+the single constraint is pre-ﬁxed (i.e., time-independent,
+non-adversarial).
+We introduce sequential risk constraints in contextual ban-
+dits: in each round, the environment prepares a context, a
+They can be very computationally efﬁcient for special cases
+
+of expert class (Beygelzimer et al., 2011)
+
+Safety-Aware Algorithms for Adversarial Contextual Bandit
+
+cost for each arm, and additionally a risk for each arm. The
+learner pulls an arm and receives the cost and risk associated
+with the pulled arm. Given a pre-deﬁned risk threshold, the
+learner ideally needs to make safe decisions such that the
+risk is no larger than the safe-threshold in every round, while
+minimizing the cumulative cost simultaneously. Such adver-
+sarial risk functions are common in real world applications:
+when a robot is navigating in an unfamiliar environment, risk
+(e.g., probability of being collision with unseen obstacles)
+and reward of taking a particular action may dependent on
+the robot’s current state and the environment (or the whole
+history of states), while the sequential states visited by the
+robot are unlikely to be i.i.d or even Markovian.
+To address the adversarial contextual bandit with sequential
+risk constraints problem, we ﬁrst study the problem of on-
+line convex programming (OCP) with sequential constraints,
+where at each round, the environment prepares a convex loss,
+and additionally a convex constraint. The learner wants to
+minimize its cumulative loss while satisfying the constraints
+as best as possible. The online learning with constraints set-
+ting is ﬁrst studied in (Mannor et al., 2009) in a two-player
+game setting. Particularly the authors constructed a two-
+player game where there exists a strategy for the adversary
+such that among the strategies of the player that satisfy the
+constraints on average, there is no strategy that can achieve
+the no-regret property in terms of maximizing the player’s
+reward. Later on (Mahdavi et al., 2012; Jenatton et al.,
+2016) considered the online convex programming frame-
+work where they introduced a pre-deﬁned global constraint
+and designed algorithms that achieve no-regret property
+on loss functions while maintaining the accumulative con-
+straint violation grows sublinearly. Though the work in
+(Mahdavi et al., 2012; Jenatton et al., 2016) did not consider
+time-dependent, adversarial constraints, we ﬁnd that their
+online gradient descent (OGD) (Zinkevich, 2003) based al-
+gorithms are actually general enough to handle adversarial
+time-dependent constraints. We ﬁrst present a family of
+online learning algorithms based on Mirror Descent (OMD)
+(Beck & Teboulle, 2003; Bubeck, 2015), which we show
+achieves near-optimal regret rate with respect to loss and
+maintains the growth of total constraint violation to be sub-
+linear. With a speciﬁc design of a mirror map, our meta
+algorithm reveals a similar algorithm shown in (Mahdavi
+et al., 2012).
+The mirror descent based algorithms in the full information
+online learning setting also enables us to derive a Multiplica-
+tive Weight (MW) update procedure by choosing negative
+entropy as the mirror map. Note that MW based update pro-
+cedure is important when extending to partial information
+contextual bandit setting. The MW based update procedure
+To be consistent to classic Online Convex Programming set-
+
+ting, we consider minimizing cost
+
+can ensure the regret is polylogarithmic in the number of ex-
+perts , instead of polynomial in the number of experts from
+using the OGD-based algorithms (Mahdavi et al., 2012;
+Jenatton et al., 2016). Leveraging the MW update proce-
+dure developed from the online learning setting, we present
+algorithms called EXP4.R (EXP4 with Risk Constraints)
+and EXP4.P.R (EXP4.P with Risk Constraints). EXP4.R
+can achieve near optimal regret in terms of minimizing cost
+while ensuring the average of the accumulative risk is no
+larger than the pre-deﬁned threshold. For EXP4.P.R, we
+further introduce a tradeoff parameter that shows how one
+can trade between the risk violation and the regret of cost.
+The rest of the paper is organized as follows. We introduce
+necessary deﬁnitions and problem setup in Sec. 2. We then
+deviate to the full information online learning setting where
+we introduce sequential, adversarial convex constraints in
+Sec. 3. In Sec. 4, we move to contextual bandits with risk
+constraints setting to present and analyze the EXP4.R and
+EXP4.P.R algorithm.
+
+2. Preliminaries
+2.1. Deﬁnitions
+A function R(x) : X!R it is strongly convex with respect
+to some norm k·k if and only if there exists a constant
+↵ 2R + such that:
+
+R(x)   R(x0) + rR(x0)T (x   x0) +
+
+↵
+2 kx   x0k2.
+
+Given a strongly convex function R(·), the Bregman diver-
+gence DR(·,·) : X⇥X!R
+
+is deﬁned as follows:
+
+DR(x, x0) = R(x)   R(x0)   rR(x0)T (x   x0).
+2.2. Online Convex Programming with Constraints
+In each round, the learner makes a decision xt 2X✓R d,
+and then receives a convex loss function `t(·) and a convex
+constraint in the form of ft(·)  0. The learner suffers
+loss `t(x). The work in (Mahdavi et al., 2012) considers
+a similar setting but with a known, pre-deﬁned global con-
+straint. Instead of projecting the decision x back to the
+convex set induced by the global constraint f (·), (Mah-
+davi et al., 2012) introduces an algorithm that achieves no-
+regret on loss while satisfying the global constrain in a
+long-term perspective. Since exactly satisfying adversarial
+constraint in every round is impossible, we also consider
+constraint satisfaction in a long-term perspective. Formally,
+for the sequence of decisions {xt}t made by the learner, we
+deﬁnePT
+t=1 ft(xt) as the cumulative constraint violation
+and we want to control the growth of the cumulative con-
+straint violation to be sublinear: PT
+t=1 ft(xt) 2 o(T ), so
+T PT
+t=1 ft(x), we have
+
+that for the long-term constraint 1
+limT!1
+
+t=1 ft(xt)  0.
+
+1
+
+T PT
+
+Safety-Aware Algorithms for Adversarial Contextual Bandit
+
+We place one assumption on the decision set X : we assume
+that the decision set X is rich enough such that in hindsight,
+we have x 2X that can satisfy all constraints: O ˙={x 2
+X : ft(x)  0,8t}6 = ; (e.g., default conservative, safe
+decisions ). We compete with the optimal decision x⇤ 2O
+that minimizes the total loss in hindsight:
+
+x⇤ = arg min
+x⇠O
+
+TXt=1
+
+`t(x).
+
+(1)
+
+Though one probably would be interested in compet-
+ing against the best decision from the set of decisions
+that satisfy the constraints in average: O0 ˙={x 2X :
+(1/T )PT
+t ft(x)  0}, in general it is impossible to com-
+pete against the best decision in O0 in hindsight (O⇢O 0).
+The following proposition adapts the discrete 2-player game
+from proposition 4 in (Mannor et al., 2009) for the OCP
+with adversary constraints and shows the learner is unable
+to compete against O0:
+Proposition 2.1. There exists a decision set X , a sequence
+of convex loss functions {`t(x)}, and a sequence of con-
+vex constraints {ft(x)  0}, such that for any sequence of
+decisions {x1, ..., xt, ...}, if it satisﬁes the long-term con-
+tPt
+i=1 fi(xi)  0, then if compet-
+strain as lim supt!1
+ing against O0, the regret grows at least linearly:
+`i(x)  =⌦( t).
+
+t!1   tXi=1
+
+`i(xi)   min
+x2O0
+
+tXi=1
+
+lim sup
+
+(2)
+
+1
+
+The proof of the proposition can be found in Sec. A in Ap-
+pendix. Hence in the rest of the paper, we have to restrict to
+O. The average regret of loss R` and the average constraint
+violation Rf are deﬁned as:
+
+Formally, at every time step t, the environment generates a
+context st 2S , a K-dimensional cost vector ct 2 [0, 1]K,
+and a risk vector rt 2 [0, 1]K. The environment then reveals
+the context st to the learner, and the learner then proposes
+a probability distribution pt 2  ([K]) over all arms. Fi-
+nally the learner samples an action at 2 [K] according to
+pt and receives the cost and risk associated to the chosen
+action: ct[at] and rt[at] (we denote c[i] as the i’th element
+of vector c). The learner ideally wants to make a sequence
+of decisions that has low accumulative cost and also satis-
+ﬁes the constraint that related to the risk: pT
+t rt    where
+  2 [0, 1] is a pre-deﬁned threshold.
+We address this problem by leveraging experts’ advice.
+Given the expert set ⇧ that consists of N experts {⇡i}N
+i=1,
+where each expert ⇡ 2 ⇧: S!  ([K]), gives advice
+by mapping from the context s to a probability distribu-
+tion p over arms. The learner then properly combines
+the experts’ advice {⇡i(s)}N
+i=1 (e.g., compute the average
+PN
+i=1 ⇡i(s)/N) to generate a distribution over all arms.
+With risk constraints, distributions over policies in ⇧ could
+be strictly more powerful than any policy in ⇧ itself. We
+aim to compete against this more powerful set. Given any
+distribution w 2  (⇧), the mixed policy resulting from w
+can be regarded as: sample policy i according to w and then
+sample an arm according to ⇡i(s). Though we do not place
+any statistical assumptions (e.g., i.i.d) on the sequence of
+cost vectors {ct} and risk vectors {rt}, we assume the pol-
+icy set ⇧ is rich enough to satisfy the following assumption:
+
+Assumption 2.2. The set of distributions from  (⇧) whose
+mixed policies satisfy all risk constraints in expectation is
+non-empty:
+
+ft(xt)].
+
+P ˙={w 2  (⇧) : Ei⇠w,j⇠⇡i(st)rt[j]   , 8t}6 = ;.
+
+R` =
+
+1
+T
+
+[
+
+TXt=1
+
+`t(xt)  
+
+`t(x⇤)], Rf =
+
+1
+T
+
+[
+
+TXt=1
+
+TXt=1
+
+We will assume the decision set
+is bounded as
+maxx1,x22X DR(x1, x2)  B 2R +, x 2X is bounded as
+kxk  X 2R +, the loss function is bounded as |`t(·)|
+F 2R +, the constraint is bounded |ft(·)| D 2R + and
+the gradient of the loss and constraint is also bounded as
+max{krx`t(x)k⇤,krxft(x)k⇤} G 2R +, where k·k ⇤
+is the dual norm with respect to k·k deﬁned for X . Note
+the setting with a global constraint considered in (Mahdavi
+et al., 2012) is a special case of our setting. Set ft = f,
+where f is the global constraint. If Rf 2 o(T ), by Jensen’s
+inequality, we have f (PT
+t=1 f (xt)/T =
+o(T )/T ! 0, as T ! 1.
+2.3. Contextual Bandits with Risk Constraints
+For contextual bandits with sequential risk constraints, let
+[K] be a ﬁnite set of K arms, S be the space of contexts.
+
+t=1 xt/T )  PT
+
+Namely we assume that the distribution set  (⇧) is rich
+enough such that there always exists at least one mixed pol-
+icy that can satisfy all risk constraints in hindsight. Similar
+to the full information setting, competing against the set of
+mixed policies that satisfy the constraint on average, namely
+t=1 Ei⇠w,j⇠⇡i(st)rt[j]/T   },
+is impossible in the partial information setting. Hence we
+deﬁne the best mixed policy in hindsight as:
+
+P0 = {w 2  (⇧) : PT
+
+w⇤ = arg min
+w2P
+
+TXt=1
+
+Ei⇠w,j⇠⇡i(st)ct[j].
+
+(3)
+
+t=1 generated from some
+Given a sequence of decisions {at}T
+algorithm, we deﬁne average regret and average constraint
+
+Safety-Aware Algorithms for Adversarial Contextual Bandit
+
+violation as:
+
+Rc =
+
+Rr =
+
+1
+
+T⇥ TXt=1
+T⇥ TXt=1
+
+1
+
+Ei⇠w⇤,j⇠⇡i(st)ct[j]⇤,
+
+ct[at]  
+
+TXt=1
+(rt[at]    )⇤.
+
+The goal is to either minimize Rc and Rr in high prob-
+ability or minimize the expected version ¯Rc ˙=E[Rc] and
+¯Rr ˙=E[Rr] where the expectation is over the randomness of
+the algorithms.
+
+3. Online Learning with Sequential
+
+Constraints
+
+The online learning with adversarial sequential constraints
+setting is similar to the one considered in (Mannor et al.,
+2009; Jenatton et al., 2016) except that they only have a
+pre-deﬁned ﬁxed global constraint. However we ﬁnd that
+their algorithms and analysis are general enough to extend
+to the online learning with adversarial sequential constraints.
+In (Mannor et al., 2009; Jenatton et al., 2016), the algo-
+rithms introduce a Lagrangian dual parameter and perform
+online gradient descent on x and online gradient ascent on
+the dual parameter. Since in this work we are eventually
+interested in reducing the contextual bandit problem to the
+full information online learning setting, simply adopting the
+OGD-based approaches from (Mannor et al., 2009; Jenat-
+ton et al., 2016) will not give a near optimal regret bound.
+Hence, developing the corresponding Multiplicative Weight
+(MW) update procedure is essential for a successful reduc-
+tion from adversarial contextual bandit to full information
+online learning setting.
+
+3.1. Algorithm
+We use the same saddle-point convex concave formation
+from (Mannor et al., 2009; Jenatton et al., 2016) to design a
+composite loss function as:
+
+Lt(x,  ) = `t(x) +  ft(x)  
+
+ µ
+2
+
+ 2,
+
+(4)
+
+where   2R +. Alg. 1 leverages online mirror descent
+(OMD) for updating the x (Line 6 and Line 7) and online
+gradient ascent algorithm for updating   (Line 8). Note
+that if we use the square norm kxk2 as the regularization
+function R(x) in Alg. 1, we reveal the gradient descent
+based update procedure from (Mahdavi et al., 2012).
+
+Algorithm 1 OCP with Sequential Constraints via OMD
+1: Input: Learning rate µ, mirror map R, parameter  
+
+(used in Lt).
+
+2: Initialize x1 2X and  1 = 0.
+3: for t = 1 to T do
+4:
+5:
+6:
+
+Learner proposes xt.
+Receive loss function `t and constraint ft.
+Set ˜xt+1 such that rR(˜xt+1) = rR(xt)  
+µrxLt(xt,  t).
+Projection: xt+1 = arg minx2X DR(x, ˜xt+1).
+Update  t+1 = max{0,  t + µr Lt(xt,  t))}.
+
+7:
+8:
+9: end for
+
+the number of rounds T is given and we consider the asymp-
+totic property of Alg. 1 when T is large enough.
+The algorithm should be really understood as running two
+no-regret procedures: (1) Online Mirror Descent on the se-
+quence of loss {L(x,  t)}t with respect to x and (2) Online
+Gradient ascent on the sequence of loss {L(xt,  )}t with
+respect to  . Instead of digging into the details of Online
+Mirror Descent and Online Gradient ascent, our analysis
+simply leverages the existing analysis of online mirror de-
+scent and online gradient ascent and show how to combine
+them to derive the regret bound and constraint violation
+bound for Alg. 1.
+Theorem 3.1. Let R(·) be a ↵-strongly convex function.
+Set µ =q
+↵ . For any convex loss
+`t(x), convex constraint ft(x)  0, under the assumption
+that O6 = ;, the family of algorithms induced by Alg. 1 have
+the following property:
+
+T (D2+G2/↵) and   = 2G2
+
+B
+
+R`  O(1/pT ), Rf  O(T  1/4).
+
+Proof Sketch of Theorem 3.1. Since the algorithm runs on-
+line mirror descent on the sequence of loss {Lt(x,  t)}t
+with respect to x, using the existing results of online mirror
+descent (e.g., Theorem 4.2 and Eq. 4.10 from (Bubeck,
+2015)), we know that for the computed sequence {xt}t:
+
+(Lt(xt,  t)  L t(x,  t))
+
+TXt=1
+
+
+
+DR(x, x1)
+
+µ
+
++
+
+µ
+2↵
+
+TXt=1
+
+krxLt(xt,  t)k2
+⇤,
+
+(5)
+
+3.2. Analysis of Alg. 1
+Throughout our analysis, we assume the regularization func-
+tion R(x) is ↵-strongly convex. For simplicity, we assume
+
+for any x 2X . Also, we know that the algorithm runs
+online gradient ascent on the sequence of loss {Lt(xt,  )}t
+with respect to  , using the existing analysis of online gra-
+dient descent (Zinkevich, 2003), we have for the computed
+
+Safety-Aware Algorithms for Adversarial Contextual Bandit
+
+sequence of { t}t:
+TXt=1
+
+Lt(xt,  )  
+
+Lt(xt,  t)
+
+TXt=1
+TXt=1  @Lt(wt,  t)
+
+ 2,
+
+µ
+2
+
+1
+µ
+
+(6)
+
+ 2 +
+
+@ t
+
+
+for any     0.
+Note that for (@Lt(xt,  t)/@ t)2 = (ft(xt)    µ  t)2 
+t . Similarly for
+t (xt) + 2 2µ2 2
+2f 2
+krxLt(xt,  t)k2
+⇤
+
+t  2D2 +  2µ2 2
+, we also have:
+krxLt(xt,  t)k2
+⇤  2kr`t(xt)k2
+ 2G2(1 +  2
+t ),
+
+(7)
+where we ﬁrst used triangle inequality for krxLt(xt,  t)k⇤
+and then use the inequality of 2ab  a2 + b2,8a, b 2R +.
+Note that we also assumed that the norm of the gradients are
+bounded as max(kr`t(xt)k⇤,krft(xt)k⇤)  G 2R +.
+Now sum Inequality 5 and 6 together, we get:
+
+⇤ + 2k trft(xt)k2
+⇤
+
+µ(D2 +  2µ2 2
+t )
+
+Xt Lt(xt,  )  L t(x,  t)
++Xt
+
+2DR(x, x1) +  2
+
+
+
+2µ
+
++Xt
+
+µG2
+↵
+
+(1 +  2
+t )
+
+=
+
+2DR(x, x1) +  2
+
+2µ
+
++ µ( 2µ2 +
+
+G2
+↵
+
++ T µ(D2 +
+
+G2
+↵
+
+)
+
+)X  2
+
+t .
+
+(8)
+
+ 2
+t  
+G2
+↵
+
+Substitute the form of Lt into the above inequality, we have:
+
+Xt
+
+(`t(xt)   `t(x)) +Xt
+2 Xt
+ 2 
+
+ µT
+2
+
+ µ
+
++
+
+( ft(xt)    tft(x))
+2DR(x, x1) +  2
+
+2µ
+
+(9)
+
+ 2
+t .
+
+G2
+↵
+
++ T µ(D2 +
+
+) + µ( 2µ2 +
+
+above inequality.
+
+Note that from our setting of µ and   we can verify that
+t in the
+
+)Xt
+     2µ2 + G2/↵, we can remove the termPt  2
+Without the termPt  2
+Xt
+(`t(xt)   `t(x⇤)) 
+ 2pDR(x, x1)T (D2 + G2/↵) = O(pT ),
+
+`t, let us set   = 0 and x = x⇤, we get:
+
+For simplicity we assumed T is large enough to be larger than
+
+t , to upper bound the regret on loss
+
++ T µ(D2 + G2/↵)
+
+2DR(x, x1)
+
+2µ
+
+any given constant.
+
+with µ =pDR(x, x1)/(T (D2 + G2/↵)). To upper bound
+Pt ft(xt), we ﬁrst observe that we can lower bound
+PT
+t=1 `t(xt)  minxPT
+t=1 `t(x)    2F T , where F is the
+upper bound of `(·). ReplacePt `t(xt)   `t(x) by  2F T
+in Eq. 9, and set   = (Pt ft(xt))/( µT + 1/µ) (here we
+assumePt ft(xt)   0, otherwise we prove the theorem),
+
+we can show that:
+
+(
+
+TXt=1
+
+8G2
+↵
+
+ft(xt))2 
++ T 3/2p8F 2G2/↵
+
+DR(x, x1) + 2(D2 +
+
+G2
+↵
+
+)T
+
+(10)
+
+t=1 ft(xt) = O(T 3/4).
+
+The RHS of the above inequality is dominated by the term
+
+T 3/2p8F 2G2/↵ when T approaches to inﬁnity. Hence,
+we getPT
+2 in Alg. 1,
+As we can see that if we replace R(x) with kxk2
+we reveal a gradient descent based update procedure that is
+almost identical to the one in (Mahdavi et al., 2012). When
+x is restricted to a simplex, to derive the multiplicative
+weight update procedure, we replace R(x) with the negative
+
+entropy regularizationPi x[i] ln(x[i]) and we can achieve
+
+the following update steps for x:
+
+xt[i] exp( µrxLt(xt,  t)[i])
+j=1 xt[j] exp( µrxLt(xt,  t)[j])
+
+.
+
+xt+1[i] =
+
+Pd
+
+We refer readers to (Shalev-Shwartz, 2011; Bubeck, 2015)
+for the derivation of the above equation.
+
+4. Contextual Bandits With Risk Constraints
+When contexts, costs and risks are i.i.d sampled from some
+unknown distribution, then our problem setting can be re-
+garded as a special case of the setting of contextual bandit
+with global objective and constraint (CBwRC) considered
+in (Agrawal et al., 2015). In (Agrawal et al., 2015), the
+algorithm also leverages Lagrangian dual variable. The dif-
+ference is that in i.i.d setting the dual parameter is ﬁxed with
+respect to the underlying distribution and hence it is possible
+to estimate the dual variable. For instance one can uniformly
+pull arms with a ﬁxed number of rounds at the beginning to
+gather information for estimating the dual variable and then
+use the estimated dual variable for all remaining rounds.
+However in the adversarial setting, this nice trick will fail
+since the costs and risks are possibly sampled from a chang-
+ing distribution. We have to rely on OCP algorithms to keep
+updating the dual variable to adapt to adversarial risks and
+costs.
+
+4.1. Algorithm
+Our algorithm EXP4.R (EXP4 with Risk constraints)
+(Alg. 2) extends the EXP4 (Auer et al., 2002) algorithm
+
+Safety-Aware Algorithms for Adversarial Contextual Bandit
+
+Algorithm 2 EXP4 with Risk Constraints (EXP4.R)
+1: Input: Policy set ⇧.
+2: Initialize w1 = [1/N, ..., 1/N ]T and  1 = 0.
+3: for t = 1 to T do
+4:
+5:
+6:
+7:
+8:
+9:
+
+Receive context st.
+Query experts to get advice ⇡i(st),8i 2 [N ].
+Set pt =PN
+Draw action at randomly from distribution pt.
+Receive cost ct[at] and risk rt[at].
+Set the cost vector ˆct 2 RK and the risk vector
+ˆrt 2 RK as follows: for all i 2 [K]
+
+i=1 wt[i]⇡i(st).
+
+ˆct[i] =
+
+ct[i] (at = i)
+
+pt[i]
+
+,
+
+ˆrt[i] =
+
+rt[i] (at = i)
+
+pt[i]
+
+.
+
+For each expert j 2 [N ], set:
+
+ˆyt[j] = ⇡j(st)T ˆct,
+
+ˆzt[j] = ⇡j(st)T ˆrt.
+
+Compute wt+1, for i 2 [|⇧|]:
+
+wt[i] exp    µ(ˆyt[i] +  t ˆzt[i]) 
+P|⇧|j=1 wt[j] exp    µ(ˆyt[j] +  t ˆzt[j])  .
+
+wt+1[i] =
+
+Compute  t+1:
+
+10:
+
+11:
+
+12:
+
+ t+1 = max{0,  t + µ(wT
+
+t ˆzt        µ  t)}.
+
+13: end for
+
+to carefully incorporating the risk constraints for updating
+the probability distribution w over all policies. At each
+round, it ﬁrst uses the common trick of importance weight-
+ing to form unbiased estimations of cost vector ˆc and risk
+vector ˆr. Then the algorithm uses the unbiased estimations
+of cost vector and risk vector to form unbiased estimations
+of the cost ˆy[i] and risk ˆz[i] for each expert i. EXP4.R then
+starts behaving differently than EXP4. EXP4.R introduces
+a dual variable   and combine the cost and risk together
+as Lt(w,  ) = wT ˆyt +  (wT ˆzt    )    µ
+2  2. We then
+use Alg. 1 with the negative entropy regularization as a
+black box online learner to update the weight w and the dual
+variable  .
+The proposed algorithm EXP4.R in general is computation-
+ally inefﬁcient since similar to EXP4 and EXP4.P, it needs
+to maintain a probability distribution over the policy set.
+Though there exist computationally efﬁcient algorithms for
+stochastic contextual bandits and hybrid contextual bandits,
+we are not aware of any computationally efﬁcient algorithm
+for adversarial contextual bandits, even without risk con-
+straints.
+
+4.2. Analysis of EXP4.R
+We provide a reduction based analysis for EXP4.R by
+ﬁrst reducing EXP4.R to Alg. 1 with negative entropic
+regularization. For the following analysis, let us deﬁne
+yt[j] = ⇡j(st)T ct and zt[j] = ⇡j(st)T rt, which stand for
+the expected cost and risk for policy j at round t.
+Let us deﬁne Lt(w,  ) = wT ˆyt +  (wT ˆzt    )    µ
+2  2.
+The multiplicative weight update in Line 11 can be re-
+garded as running Weighted Majority on the sequence of
+loss {Lt(w,  t)}t, while the update rule for   in Line 12
+can be regarded as running Online Gradient Ascent on the
+sequence of loss {Lt(wt,  )}t. Directly applying the classic
+analysis of Weighted Majority (Shalev-Shwartz, 2011) on
+the generated sequence of weights {wt}t and the classic
+analysis of OGD (Zinkevich, 2003) on the generated se-
+quence of dual variables { t}t, we get the following lemma:
+Lemma 4.1. With the negative entropyPi x[i] ln(x[i]) as
+the regularization function for R(x) in Alg. 1, running Alg. 1
+on the sequence of linear loss functions `t(w) = wT ˆyt and
+linear constraint ft(w) = wT ˆzt      0, we have:
+ln(|⇧|)
+
++
+
+Lt(wt,  )  
+
+Lt(w,  t) 
+
+ 2
+µ
+
+µ
+
+TXt=1
+
+TXt=1
+TXt=1⇣  |⇧|Xi=1
+t ˆzt        µ  t)2⌘.
+
++
+
+µ
+2
+
++ (wT
+
+wt[i](2ˆyt[i]2 + 2 2
+
+t ˆzt[i]2) 
+
+(11)
+
+We defer the proof of the above lemma to Appendix. The
+EXP4.R algorithm has the following property:
+
+Theorem 4.2. Set µ = pln(|⇧|)/(T (K + 4)) and   =
+3K. Assume P6 = ;. EXP4.R has the following property:
+
+¯Rc = O(pK ln(|⇧|)/T ),
+¯Rr = O(T  1/4(K ln(|⇧|))1/4).
+
+t ˆyt = ct[at]  1.
+
+Proof Sketch of Theorem 4.2. The proof consists of a com-
+bination of the analysis of EXP4 and the analysis of The-
+orem 3.1. We defer the full proof in Appendix C. We
+ﬁrst present several known facts. First, we have wT
+t ˆzt =
+rt[at]  1 and wT
+For Eat⇠pt(wT
+ )2  2 + 2 2  4.
+It
+Eat⇠pt ˆyt = yt and Eat⇠pt ˆzt = zt.
+also true that Eat⇠ptP|⇧|i=1 wt[i]ˆyt[i]2  K and
+Eat⇠ptP|⇧|i=1 wt[i]ˆzt[i]2  K.
+
+t ˆzt   )2, we can show that: Eat⇠pt(wT
+
+Now take expectation with respect to the sequence of deci-
+
+straightforward
+
+that
+It
+is
+
+to
+
+show
+
+is
+
+also
+
+t ˆzt 
+
+sions {at}t on LHS of Inequality 11:
+
+E{at}t
+
+TXt=1hLt(wt,  )  L t(w,  t)i
+TXt=1⇥Ect[at] +  (Ert[at]    )   yT
+
+=
+
++
+
+ µ
+2
+
+ 2
+
+t⇤  
+
+ µT
+2
+
+ 2
+
+Now take the expectation with respect to a1, ..., aT on the
+RHS of inequality 11, we can get:
+
+E[RHS of Inequality 11] 
+
+ 2
+µ
+
++
+
+ln|⇧|
+µ
+
++µT (K + 4) + µ(K +  2µ2)
+
+ 2
+t .
+
+(13)
+
+TXt=1
+
+Now we can chain Eq. 12 and 13 together and use the
+same technique that we used in the analysis of Theorem 3.1.
+Chain Eq. 12 and 13 together and set w to w⇤ and   = 0, it
+is not hard to show that:
+
+Set   =
+
+yT
+
+TXt=1
+
+ct[at]  
+
+E  TXt=1
+ 2pln(|⇧|)T (K + 4) = O(pT K ln(|⇧|)),
+
+t w⇤ 
+
+where µ = pln(|⇧|)/(T (K + 4)).
+(Pt(Ert[at]    ))/( µT + 2/µ), we can get:
+(Ert[at]    ))2  (2 µT + 4/µ)⇣2T
++ 2pln(|⇧|)T (K + 4)⌘
+
+TXt=1
+
+(
+
+equation, it is easy to verity that:
+
+Substitute µ = pln(|⇧|)/(T (K + 4)) back to the above
+TXt=1
+
+(Ert[at]    ))2  O T 3/2(K ln(|⇧|))1/2 .
+
+(15)
+
+(
+
+(14)
+
+4.3. Extension To High-Probability Bounds
+The regret bound and constraint violation bound of EXP4.R
+hold in expectation. In this section, we present an algo-
+rithm named EXP4.P.R, which achieves high-probability
+regret bound and constraint violation bound. The algo-
+rithm EXP4.P.R, as indicated by its name, is built on the
+well-known EXP4.P algorithm. In this section for the conve-
+nience of analysis, without loss of generality, we are going to
+assume that for any cost vector c and risk vector r, we have
+c[i] 2 [ 1, 0], r[i]  [ 1, 0],8i 2 [K], and   2 [ 1, 0].
+
+Safety-Aware Algorithms for Adversarial Contextual Bandit
+
+t w    t(zT
+
+t w    )
+
+(12)
+
+wt+1[i] =
+
+The whole framework of the algorithm is similar to the
+one of EXP4.R, with only one modiﬁcation. For notation
+simplicity, let us deﬁne ˜xt[i] = ˆyt[i] +  t ˆzt[i]. Note that
+˜xt[i] is an unbiased estimate of yt[i] +  tzt[i]. EXP4.P.R
+modiﬁes EXP4.R by replacing the update procedure for
+wt+1 in Line 11 in Alg. 2 with the following update step:
+
+wt[i] exp( µ(˜xt[i]   PK
+P|⇧|j=1 wt[j] exp( µ(˜xt[j]   PK
+
+k=1
+
+⇡i(st)[k]
+
+pt[k]
+
+))
+
+⇡j (st)[k]
+
+pt[k]
+
+k=1
+
+,
+
+))
+
+k=1
+
+pt[k]
+
+pt[k]
+
+⇡j (st)[k]
+
+⇡j (st)[k]
+
+where  is a constant that will be deﬁned in the analy-
+sis of EXP4.P.R. We refer readers to Appendix D for the
+full version of EXP4.P.R. Essentially, similar to EXP3.P
+to
+k=1
+is not an unbi-
+ased estimation of yt[i] +  tzt[i] anymore, as shown in
+Lemma D.3 in Appendix D.2, it enables us to upper bound
+
+and EXP4.P, we add an extra term  PK
+˜xt[i]. Though ˜xt[i]   PK
+Pt ˜xt[i]   PK
+
+usingPt yt[i] +  tzt[i] with
+
+high probability.
+We show that EXP4.P.R has the following performance
+guarantees:
+Theorem 4.3. Assume P6 = ;. For any ✏ 2 (0, 1/2), ⌫ 2
+(0, 1), set µ = q ln(|⇧|)
+, and
+  = T  ✏+1/2K, we have that with probability at least
+1   ⌫:
+
+(3K+4)T ,  = q (1+T ✏) ln(|⇧|/⌫)
+
+⇡j (st)[k]
+
+pt[k]
+
+k=1
+
+T K
+
+Rc = O(pT ✏ 1K ln(|⇧|/⌫)),
+Rr = O(T  ✏/2pK ln(|⇧|)).
+
+(16)
+
+The above theorem introduces a trade-off between the regret
+of cost and the constraint violation. As ✏ ! 0, we can
+see that the regret of cost approaches to the near-optimal
+onepT K ln(|⇧|), but the average risk constrain violation
+approaches to a constant. Based on speciﬁc applications,
+one may set a speciﬁc ✏ 2 (0, 0.5) to balance the regret and
+the constraint violation. For instance, for ✏ = 1/3, one can
+show that the cumulative regret is O(T 2/3pK ln(|⇧|)) and
+is impossible to achieve the regret rate O(T 2/3pln(|⇧|)) in
+
+the average constraint violation is ˜O(T  1/6). Note that if
+one simply runs EXP4.R proposed in the previous section, it
+
+a high probability statement. As shown in (Auer et al., 2002),
+for EXP4 the cumulative regret on the order of O(T 3/4) was
+possible.
+The difﬁculty of achieving a high probability statement
+
+with optimal cumulative regret O(pT K ln(|⇧|)) and cu-
+
+mulative constraint violation rate ˜O(T 3/4) is from the La-
+grangian dual variable  . The variance of ˆzt is propor-
+tional to 1/pt[at]. With  t, the variance of  t ˆzt scales as
+EXP4.R becomes the same as EXP4 when we set all risks and
+
+  to zeros.
+
+Safety-Aware Algorithms for Adversarial Contextual Bandit
+
+(a) Environment
+
+(b) Cost
+
+(c) Risk
+
+Figure 1. (a) Environment set up and a safe trajectory from the initial position to the goal region (green). (b,c) The performance of EXP4.R
+under different values of risk thresholds (y-axis is in log scale).
+
+t /pt[at]. As we show in Lemma D.2 in Appendix D.2,
+ 2
+ t could be as large as | |/( µ). Depending on the value
+of  , µ,  t could be large, e.g., ⇥(pT ) if   is a constant
+and µ =⇥(1 /pT ). Hence compared to EXP4.P, the La-
+grangian dual variable in EXP4.P.R makes it more difﬁ-
+cult to control the variance of ˜xt, which is an unbiased
+estimation of yt[i] +  tzt[i]. This is exactly where the
+trade-off ✏ comes from: we can tune the magnitude of   to
+control the variance of ˜xt and further control the trade-off
+between regret and risk violation . How to achieve total re-
+
+gret O(pT K ln(|⇧|)) and cumulative constraint violation
+
+O(T 3/4) in high probability is still an open problem.
+
+5. Simulation
+We test our algorithms on a simple synthetic robotics reac-
+tive control task. The 2-D environment, shown in Fig. 1a is
+set up as follows. We divide the environment into 9 cells
+and each cell is associated by a waypoint (black dot or black
+circle). The black dots are associated with risk 1 and stands
+for dangerous areas while the circle dots are associated with
+risk zeros (i.e., safe regions). The state of the agent is its
+2-D position and for each state, we compute the RBF feature
+s with respect 9 waypoints and then normalize the feature s
+such thatP9
+i=1 s[i] = 1. The risk for feature s is the inner
+product between s and the 9-dimension risk vector. The
+reward of action a is max(0, d1   d2) (we simply negate
+the reward to fake a cost to feed to our algorithms), where
+d1 stands for the old distance to goal and d2 is the new
+distance to goal after taken action a (hence a non-linear
+reward mapping). We designed 4 actions for the agent: it
+can move up, right, left, and down with a ﬁxed small con-
+stant distance. We design 49 experts where each expert ⇡i
+is a 9 dimensional vector, where the element in each di-
+mension belongs to the action set (Left,Right, Up, Down)
+(namely each expert ⇡i suggests an action for every way-
+point). Given a feature s, the suggestion ⇡i(s) is computed
+
+as ⇡i(s)[i] =Pk,⇡i[k]=i s[k]. Note that this is similar to the
+
+setting consider in (Beygelzimer et al., 2011). Note that the
+class of experts can be represented by a depth-9 tree with 4
+branches. Hence computational efﬁcient weighted majority
+
+algorithm implementation could be used here (Cesa-Bianchi
+& Lugosi, 2006). But in this work, we temporarily lighten
+computational burden by paralleling computing. We initial-
+ize the weight over all experts uniformly and let the EXP4.R
+algorithm picks decision for the agent. The agent executes
+the decision, receives risk and cost. The agent is reset to the
+initial position once it reaches the goal region or outside of
+the map too much.
+Fig. 1b and 1c show the performance of EXP4.R under
+different values of risk threshold  . We observe that EXP4.R
+can ensure that the average risk converges to the threshold
+ , while keep decreasing the average cost simultaneously.
+A lower risk threshold usually results a slower decrease in
+the average cost, which is consistent to the theorems since
+a smaller risk threshold leads to a smaller P. Compare to
+the performance of EXP4, we see the EXP4 can offer faster
+decrease rate for cost (as it can compete against the whole
+policy class set), but it cannot control risk, e.g, it discovers
+paths that cut through the middle high-risk cell.
+
+6. Conclusion
+We study safe sequential decision making problem under
+the format of adversarial contextual bandits with adversarial
+sequential risk constraints. We provide safety-aware algo-
+rithms that can satisfy the long-term risk constraint while
+achieve near-optimal regret in terms of minimizing costs.
+The proposed two algorithm, EXP4.R and EXP4.P.R, are
+built on the existing EXP4 and EXP4.P algorithms: EXP4.R
+achieves near-optimal regret and satisﬁes the long-term con-
+straint in expectation while EXP4.P.R achieves similar the-
+oretical bounds with high probability, with a tradeoff that
+can trade the constraint violation for regret and vice versa.
+Same as EXP4 and EXP4.P, the computational complexity
+of a simple implementation of our algorithms per step is
+linear with respect to the size of the expert class. However
+for expert class that has special structures such as trees (as
+we used in our simulation) or graphs, one can usually design
+efﬁcient implementation. We leave the efﬁcient implemen-
+tation for real robotics control as a future work.
+
+Safety-Aware Algorithms for Adversarial Contextual Bandit
+
+Madani, Omid, Lizotte, Daniel J, and Greiner, Russell. The bud-
+geted multi-armed bandit problem. In International Conference
+on Computational Learning Theory, pp. 643–645. Springer,
+2004.
+
+Mahdavi, Mehrdad, Jin, Rong, and Yang, Tianbao. Trading re-
+gret for efﬁciency: online convex optimization with long term
+constraints. The Journal of Machine Learning Research, 13(1):
+2503–2528, 2012.
+
+Mannor, Shie, Tsitsiklis, John N, and Yu, Jia Yuan. Online learning
+with sample path constraints. The Journal of Machine Learning
+Research, 10:569–590, 2009.
+
+Shalev-Shwartz, Shai. Online Learning and Online Convex Opti-
+mization. Foundations and Trends in Machine Learning, 4(2):
+107–194, 2011.
+
+Zinkevich, Martin. Online Convex Programming and Generalized
+Inﬁnitesimal Gradient Ascent. In International Conference on
+Machine Learning (ICML 2003), pp. 421–422, 2003.
+
+Acknowledgement
+The research work was done during Wen Sun’s internship at
+Microsoft Research, Redmond.
+
+References
+Agarwal, Alekh, Hsu, Daniel, Kale, Satyen, Langford, John, Li,
+Lihong, and Schapire, Robert. Taming the monster: A fast
+and simple algorithm for contextual bandits. In Proceedings of
+The 31st International Conference on Machine Learning, pp.
+1638–1646, 2014.
+
+Agrawal, Shipra and Devanur, Nikhil R. Linear contextual bandits
+
+with knapsacks. arXiv preprint arXiv:1507.06738, 2015.
+
+Agrawal, Shipra, Devanur, Nikhil R, and Li, Lihong. Contextual
+bandits with global constraints and objective. arXiv preprint
+arXiv:1506.03374, 2015.
+
+Amodei, Dario, Olah, Chris, Steinhardt, Jacob, Christiano, Paul,
+Schulman, John, and Man´e, Dan. Concrete problems in ai safety.
+arXiv preprint arXiv:1606.06565, 2016.
+
+Auer, Peter, Cesa-Bianchi, Nicolo, Freund, Yoav, and Schapire,
+Robert E. The nonstochastic multiarmed bandit problem. SIAM
+Journal on Computing, 32(1):48–77, 2002.
+
+Badanidiyuru, Ashwinkumar, Kleinberg, Robert, and Slivkins,
+Aleksandrs. Bandits with knapsacks. In Foundations of Com-
+puter Science (FOCS), 2013 IEEE 54th Annual Symposium on,
+pp. 207–216. IEEE, 2013.
+
+Badanidiyuru, Ashwinkumar, Langford, John, and Slivkins, Alek-
+sandrs. Resourceful contextual bandits. In COLT, pp. 1109–
+1134, 2014.
+
+Beck, Amir and Teboulle, Marc. Mirror descent and nonlinear pro-
+jected subgradient methods for convex optimization. Operations
+Research Letters, 31(3):167–175, 2003.
+
+Beygelzimer, Alina, Langford, John, Li, Lihong, Reyzin, Lev,
+and Schapire, Robert E. Contextual bandit algorithms with
+supervised learning guarantees. In AISTATS, pp. 19–26, 2011.
+Bubeck, S´ebastien. Convex optimization: Algorithms and com-
+plexity. Foundations and Trends R  in Machine Learning, 8
+(3-4):231–357, 2015.
+
+Bubeck, S´ebastien, Cesa-Bianchi, Nicol`o, et al. Regret analysis
+of stochastic and nonstochastic multi-armed bandit problems.
+Foundations and Trends R  in Machine Learning, 5(1):1–122,
+2012.
+
+Cesa-Bianchi, Nicolo and Lugosi, G´abor. Prediction, learning,
+
+and games. Cambridge university press, 2006.
+
+Ding, Wenkui, Qin, Tao, Zhang, Xu-Dong, and Liu, Tie-Yan.
+Multi-armed bandit with budget constraint and variable costs.
+In AAAI, 2013.
+
+Jenatton, Rodolphe, Huang, Jim, and Archambeau, C´edric. Adap-
+tive algorithms for online convex optimization with long-term
+constraints. ICML, 2016.
+
+Langford, John and Zhang, Tong. The epoch-greedy algorithm
+for multi-armed bandits with side information. In Advances in
+neural information processing systems, pp. 817–824, 2008.
+
+

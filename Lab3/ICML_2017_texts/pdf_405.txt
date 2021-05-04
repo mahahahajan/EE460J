@@ -1,0 +1,1256 @@
+Approximate Newton Methods and Their Local Convergence
+
+Haishan Ye 1 Luo Luo 1 Zhihua Zhang 2
+
+Abstract
+
+Many machine learning models are reformulated
+as optimization problems. Thus, it is important
+to solve a large-scale optimization problem in
+big data applications. Recently, stochastic sec-
+ond order methods have emerged to attract much
+attention for optimization due to their efﬁciency
+at each iteration, rectiﬁed a weakness in the ordi-
+nary Newton method of suffering a high cost in
+each iteration while commanding a high conver-
+gence rate. However, the convergence properties
+of these methods are still not well understood.
+There are also several important gaps between
+the current convergence theory and the perfor-
+mance in real applications. In this paper, we aim
+to ﬁll these gaps. We propose a unifying frame-
+work to analyze local convergence properties of
+second order methods. Based on this framework,
+our theoretical analysis matches the performance
+in real applications.
+
+1. Introduction
+Mathematical optimization is an importance pillar of ma-
+chine learning. We consider the following optimization
+problem
+
+n(cid:88)
+
+i=1
+
+min
+x∈Rd
+
+F (x) (cid:44) 1
+n
+
+fi(x),
+
+(1)
+
+where the fi(x) are smooth functions. Many machine
+learning models can be expressed as (1) where each fi
+is the loss with respect to (w.r.t.)
+the i-th training sam-
+ple. There are many examples such as logistic regressions,
+smoothed support vector machines, neural networks, and
+graphical models.
+Many optimization algorithms to solve the problem in (1)
+are based on the following iteration:
+
+x(t+1) = x(t) − ηtQtg(x(t)), t = 0, 1, 2, . . . ,
+
+1Shanghai Jiao Tong University, Shanghai, China 2Peking Uni-
+versity & Beijing Institute of Big Data Research, Beijing, China.
+Correspondence to: Zhihua Zhang <zhzhang@gmail.com>.
+
+Proceedings of the 34 th International Conference on Machine
+Learning, Sydney, Australia, PMLR 70, 2017. Copyright 2017
+by the author(s).
+
+where ηt > 0 is the step length. If Qt is the identity matrix
+and g(x(t)) = ∇F (x(t)), the resulting procedure is called
+Gradient Descent (GD) which achieves sublinear conver-
+gence for a general smooth convex objective function and
+linear convergence for a smooth-strongly convex objective
+function. When n is large, the full gradient method is inef-
+ﬁcient due to its iteration cost scaling linearly in n. Conse-
+quently, stochastic gradient descent (SGD) has been a typ-
+ical alternative (Robbins & Monro, 1951; Li et al., 2014;
+Cotter et al., 2011). In order to achieve cheaper cost in each
+iteration, such a method constructs an approximate gradient
+on a small mini-batch of data. However, the convergence
+rate can be signiﬁcantly slower than that of the full gradi-
+ent methods (Nemirovski et al., 2009). Thus, a great deal
+of efforts have been made to devise modiﬁcation to achieve
+the convergence rate of the full gradient while keeping low
+iteration cost (Johnson & Zhang, 2013; Roux et al., 2012;
+Schmidt et al., 2013; Zhang et al., 2013).
+If Qt is a d×d positive deﬁnite matrix containing the curva-
+ture information, this formulation leads us to second-order
+methods. It is well known that second order methods en-
+joy superior convergence rate in both theory and practice
+in contrast to ﬁrst-order methods which only make use of
+the gradient information. The standard Newton method,
+where Qt = [∇2F (x(t))]−1, g(x(t)) = ∇F (x(t)) and
+ηt = 1, achieves a quadratic convergence rate for smooth-
+strongly convex objective functions. However, the New-
+ton method takes O(nd2 + d3) cost per iteration, so it
+becomes extremely expensive when n or d is very large.
+As a result, one tries to construct an approximation of the
+Hessian in which way the update is computationally fea-
+sible, and while keeping sufﬁcient second order informa-
+tion. One class of such methods are quasi-Newton meth-
+ods, which are generalizations of the secant methods to ﬁnd
+the root of the ﬁrst derivative for multidimensional prob-
+lems. The celebrated Broyden-Fletcher-Goldfarb-Shanno
+(BFGS) and its limited memory version (L-BFGS) are the
+most popular and widely used (Nocedal & Wright, 2006).
+They take O(nd + d2) cost per iteration.
+Recently, when n (cid:29) d, so-called subsampled Newton
+methods have been proposed, which deﬁne an approximate
+Hessian matrix with a small subset of samples. The most
+naive approach is to sample a subset of functions fi ran-
+domly (Roosta-Khorasani & Mahoney, 2016; Byrd et al.,
+
+Approximate Newton Methods and Their Local Convergence
+
+2011; Xu et al., 2016) to construct a subsampled Hessian.
+Erdogdu & Montanari (2015) proposed a regularized sub-
+sampled Newton method called NewSamp. When the Hes-
+sian can be written as ∇2F (x) = [B(x)]T B(x) where
+B(x) is an available n × d matrix, Pilanci & Wainwright
+(2015) used sketching techniques to approximate the Hes-
+sian and proposed a sketch Newton method. Similarly,
+Xu et al. (2016) proposed to sample rows of B(x) with
+non-uniform probability distribution. Agarwal et al. (2016)
+brought up an algorithm called LiSSA to approximate the
+inversion of Hessian directly.
+Although the convergence performance of stochastic sec-
+ond order methods has been analyzed, the convergence
+properties are still not well understood. There are several
+important gaps lying between the convergence theory and
+real application.
+The ﬁrst gap is the necessity of Lipschitz continuity of
+Hessian.
+In previous work, to achieve a linear-quadratic
+convergence rate, stochastic second order methods all as-
+sume that ∇2F (x) is Lipschitz continuous. However, in
+real applications without this assumption, they might also
+converge to the optimal point. For example, Erdogdu
+& Montanari (2015) used NewSamp to successfully train
+smoothed-SVM in which the Hessian is not Lipschitz con-
+tinuous.
+The second gap is about the sketched size of sketch New-
+ton methods. To obtain a linear convergence, the sketched
+size is O(dκ2) in (Pilanci & Wainwright, 2015) and then
+is improved to O(dκ) in (Xu et al., 2016) using Gaussian
+sketching matrices, where κ is the condition number of the
+Hessian matrix in question. However, the sketch Newton
+empirically performs well even when the Hessian matrix is
+ill-conditioned. Sketched size being several tens of times
+or even several times of d can achieve a linear convergence
+rate in unconstrained optimization. But the theoretical re-
+sult of Pilanci & Wainwright (2015); Xu et al. (2016) im-
+plies that sketched size may be beyond n in ill-condition
+cases.
+The third gap is about the sample size in regularized sub-
+sampled Newton methods. In both (Erdogdu & Montanari,
+2015) and (Roosta-Khorasani & Mahoney, 2016), their the-
+oretical analysis shows that the sample size of regularized
+subsampled Newton methods should be set as the same as
+the conventional subsampled Newton method. In practice,
+however, adding a large regularizer can obviously reduce
+the sample size while keeping convergence. Thus, this con-
+tradicts the extant theoretical analysis (Erdogdu & Monta-
+nari, 2015; Roosta-Khorasani & Mahoney, 2016).
+In this paper, we aim to ﬁll these gaps between the cur-
+rent theory and empirical performance. More speciﬁcally,
+we ﬁrst cast these second order methods into an algorith-
+
+mic framework that we call approximate Newton. Then we
+propose a general result for analysis of local convergence
+properties of second order methods. Based on this frame-
+work, we give detailed theoretical analysis which matches
+the empirical performance very well. We summarize our
+contribution as follows:
+
+• We propose a unifying framework (Theorem 3) to an-
+alyze local convergence properties of second order
+methods including stochastic and deterministic ver-
+sions. The convergence performance of second order
+methods can be analyzed easily and systematically in
+this framework.
+
+• We prove that the Lipschitz continuity condition of
+Hessian is not necessary for achieving linear and su-
+perlinear convergence in variants of subsampled New-
+ton. But it is needed to obtain quadratic conver-
+gence. This explains the phenomenon that NewSamp
+(Erdogdu & Montanari, 2015) can be used to train
+smoothed SVM in which the Lipschitz continuity con-
+dition of Hessian is not satisﬁed. It also reveals the
+reason why previous stochastic second order methods,
+such as subsampled Newton, sketch Newton, LiSSA,
+etc., all achieve a linear-quadratic convergence rate.
+• We prove that the sketched size is independent of the
+condition number of the Hessian matrix which ex-
+plains that sketched Newton performs well even when
+the Hessian matrix is ill-conditioned.
+
+• We provide a theoretical guarantee that adding a regu-
+larizer is an effective way to reduce the sample size in
+subsampled Newton methods while keeping converg-
+ing. Our theoretical analysis also shows that adding a
+regularizer will lead to poor convergence behavior as
+the sample size decreases.
+
+1.1. Organization
+
+The remainder of the paper is organized as follows.
+In
+Section 2 we present notation and preliminaries. In Sec-
+tion 3 we present a unifying framework for local conver-
+gence analysis of second order methods. In Section 4 we
+analyze the local convergence properties of sketch New-
+ton methods and prove that sketched size is independent of
+condition number of the Hessian. In Section 5 we give the
+local convergence behaviors of several variants of subsam-
+pled Newton method. Especially, we reveal the relationship
+among the sample size, regularizer and convergence rate.
+In Section 6, we derive the local convergence properties
+of inexact Newton methods from our framework. In Sec-
+tion 7, we validate our theoretical results experimentally.
+Finally, we conclude our work in Section 8. All the proofs
+are presented in the supplementary metarials.
+
+Approximate Newton Methods and Their Local Convergence
+
+2. Notation and Preliminaries
+In this section, we introduce the notation and preliminaries
+that will be used in this paper.
+
+2.1. Notation
+Given a matrix A = [aij] ∈ Rm×n of rank (cid:96) and a
+positive integer k ≤ (cid:96), its condensed SVD is given as
+k +U\kΣ\kV T\k, where Uk and U\k
+A = U ΣV T = UkΣkV T
+contain the left singular vectors of A, Vk and V\k contain
+the right singular vectors of A, and Σ = diag(σ1, . . . , σ(cid:96))
+with σ1 ≥ σ2 ≥ ··· ≥ σ(cid:96) > 0 are the nonzero singular
+values of A. We use σmax(A) to denote the largest sin-
+gular value and σmin(A) to denote the smallest non-zero
+singular value. Thus, the condition number of A is deﬁned
+by κ(A) (cid:44) σmax(A)
+If A is positive semideﬁnite, then
+σmin(A) .
+U = V and the square root of A can be deﬁned as A1/2 =
+U Σ1/2U T . It also holds that λi(A) = σi(A), where λi(A)
+is the i-th largest eigenvalue of A, λmax(A) = σmax(A),
+and λmin(A) = σmin(A).
+Additionally, (cid:107)A(cid:107) (cid:44) σ1 is the spectral norm. Given a pos-
+itive deﬁnite matrix M, (cid:107)x(cid:107)M (cid:44) (cid:107)M 1/2x(cid:107) is called the
+M-norm of x. Give square matrices A and B with the same
+size, we denote A (cid:22) B if B − A is positive semideﬁnite.
+2.2. Randomized sketching matrices
+
+We ﬁrst give an -subspace embedding property which will
+be used to sketch Hessian matrices. Then we list two most
+popular types of randomized sketching matrices.
+Deﬁnition 1 S ∈ Rs×m is said to be an -subspace em-
+bedding matrix w.r.t. a ﬁxed matrix A ∈ Rm×d where
+d < m, if (cid:107)SAx(cid:107)2 = (1 ± )(cid:107)Ax(cid:107)2 (i.e., (1 − )(cid:107)Ax(cid:107)2 ≤
+(cid:107)SAx(cid:107)2 ≤ (1 + )(cid:107)Ax(cid:107)2) for all x ∈ Rd.
+From the deﬁnition of the -subspace embedding matrix,
+we can derive the following property directly.
+Lemma 2 S ∈ Rs×m is an -subspace embedding matrix
+w.r.t. the matrix A ∈ Rm×d if and only if
+
+(1 − )AT A (cid:22) AT ST SA (cid:22) (1 + )AT A.
+
+Leverage score sketching matrix. A leverage score
+sketching matrix S = DΩ ∈ Rs×m w.r.t. A ∈ Rm×d is de-
+ﬁned by sampling probabilities pi, a sampling matrix Ω ∈
+Rm×s and a diagonal rescaling matrix D ∈ Rs×s. Specif-
+ically, we construct S as follows. For every j = 1, . . . , s,
+independently and with replacement, pick an index i from
+the set {1, 2 . . . , m} with probability pi, and set Ωji = 1
+and Ωjk = 0 for k (cid:54)= i as well as Djj = 1/√pis. The sam-
+pling probabilities pi are the leverage scores of A deﬁned
+as follows. Let V ∈ Rm×d be the column orthonormal
+
+basis of A, and let vi,∗ denote the i-th row of V . Then
+(cid:96)i (cid:44) (cid:107)vi,∗(cid:107)2/d for i = 1, . . . , m are the leverage scores of
+A. To achieve an -subspace embedding property w.r.t. A,
+s = O(d log d/2) is sufﬁcient.
+Sparse embedding matrix. A sparse embedding matrix
+S ∈ Rs×m is such a matrix in each column of which there
+is only one nonzero entry uniformly sampled from {1,−1}
+(Clarkson & Woodruff, 2013). Hence, it is very efﬁcient
+to compute SA, especially when A is sparse. To achieve
+an -subspace embedding property w.r.t. A ∈ Rm×d, s =
+O(d2/2) is sufﬁcient (Meng & Mahoney, 2013; Woodruff,
+2014).
+Other sketching matrices such as Gaussian Random Projec-
+tion and Subsampled Randomized Hadamard Transforma-
+tion as well as their properties can be found in the survey
+(Woodruff, 2014).
+
+2.3. Assumptions and Notions
+
+In this paper, we focus on the problem described in
+Eqn. (1). Moreover, we will make the following two as-
+sumptions.
+
+Assumption 1 The objective function F is µ-strongly
+convex, that is,
+µ
+2(cid:107)y−x(cid:107)2, for µ > 0.
+F (y) ≥ F (x)+[∇F (x)]T (y−x)+
+Assumption 2 ∇F (x) is L-Lipschitz continuous, that is,
+
+(cid:107)∇F (x) − ∇F (y)(cid:107) ≤ L(cid:107)y − x(cid:107), for L > 0.
+
+Assumptions 1 and 2 imply that for any x ∈ Rd, we have
+
+µI (cid:22) ∇2F (x) (cid:22) LI,
+
+where I is the identity matrix of appropriate size. With a
+little confusion, we deﬁne κ (cid:44) L
+µ . In fact, κ is an upper
+bound of condition number of the Hessian matrix ∇2F (x)
+for any x.
+Besides, if ∇2F (x) is Lipschitz continuous, then we have
+
+(cid:107)∇2F (x) − ∇2F (y)(cid:107) ≤ ˆL(cid:107)x − y(cid:107),
+
+where ˆL > 0 is the Lipschitz constant of ∇2F (x).
+Throughout this paper, we use notions of linear conver-
+gence rate, superlinear convergence rate and quadratic con-
+vergence rate. In our paper, the convergence rates we will
+use are deﬁned w.r.t. (cid:107) · (cid:107)M∗, where M∗ = [∇2F (x∗)]−1
+and x∗ is the optimal solution to Problem (1). A sequence
+of vectors {x(t)} is said to converge linearly to a limit point
+x∗, if for some 0 < ρ < 1,
+
+lim sup
+t→∞
+
+(cid:107)∇F (x(t+1))(cid:107)M∗
+(cid:107)∇F (x(t))(cid:107)M∗
+
+= ρ.
+
+Approximate Newton Methods and Their Local Convergence
+
+(a) There exists a sufﬁcient small value γ, 0 < ν(t) < 1,
+and 0 < η(t) < 1 such that when (cid:107)x(t) − x∗
+(cid:107) ≤ γ, we
+
+have that
+(cid:18)
+(cid:107)∇F (x(t+1))(cid:107)M∗
+≤
+
+1
+1 − 0
+
+0 +
+
+(cid:19) 1 + ν(t)
+1 − ν(t)(cid:107)∇F (x(t))(cid:107)M∗ .
+
++
+
+2η(t)
+1 − 0
+
+Similarly, superlinear convergence and quadratic conver-
+gence are respectively deﬁned as
+
+(cid:107)∇F (x(t+1))(cid:107)M∗
+(cid:107)∇F (x(t))(cid:107)M∗
+
+lim sup
+
+t→∞
+
+= 0, lim sup
+
+t→∞
+
+(cid:107)∇F (x(t+1))(cid:107)M∗
+(cid:107)∇F (x(t))(cid:107)2
+M∗
+
+= ρ.
+
+We call it the linear-quadratic convergence rate if the fol-
+lowing condition holds:
+
+(cid:107)∇F (x(t+1))(cid:107)M∗ ≤ ρ1(cid:107)∇F (x(t))(cid:107)M∗ +ρ2(cid:107)∇F (x(t))(cid:107)2
+where 0 < ρ1 < 1.
+
+M∗ ,
+
+3. Approximate Newton Methods and Local
+
+Convergence Analysis
+
+The existing variants of stochastic second order methods
+share some important attributes. First, these methods such
+as NewSamp (Erdogdu & Montanari, 2015), LiSSA (Agar-
+wal et al., 2016), subsampled Newton with conjugate gradi-
+ent (Byrd et al., 2011), and subsampled Newton with non-
+uniformly sampling (Xu et al., 2016), all have the same
+convergence properties; that is, they have a linear-quadratic
+convergence rate.
+Second, they also enjoy the same algorithm procedure sum-
+marized as follows. In each iteration, they ﬁrst construct an
+approximate Hessian matrix H (t) such that
+
+(1 − 0)H (t) (cid:22) ∇2F (x(t)) (cid:22) (1 + 0)H (t),
+
+(2)
+
+where 0 ≤ 0 < 1. Then they solve the following opti-
+mization problem
+
+min
+
+p
+
+1
+2
+
+pT H (t)p − pT∇F (x(t))
+
+(3)
+
+approximately or exactly to obtain the direction vector
+p(t). Finally, their update equation is given as x(t+1) =
+x(t) − p(t). With this procedure, we regard these stochastic
+second order methods as approximate Newton methods.
+In the following theorem, we propose a unifying frame-
+work which describes the convergence properties of the
+second order optimization procedure depicted above.
+
+Theorem 3 Let Assumptions 1 and 2 hold. Suppose that
+∇2F (x) exists and is continuous in a neighborhood of a
+minimizer x∗. H (t) is a positive deﬁnite matrix that satis-
+ﬁes Eqn. (2) with 0 ≤ 0 < 1. Let p(t) be an approximate
+solution of Problem (3) such that
+
+(cid:107)∇F (x(t)) − H (t)p(t)(cid:107) ≤
+
+1
+κ (cid:107)∇F (x(t))(cid:107),
+
+(4)
+
+where 0 < 1 < 1. Deﬁne the iteration x(t+1) = x(t)−p(t).
+
+(5)
+
+(6)
+
+(7)
+
+Besides, ν(t) and η(t) will go to 0 as x(t) goes to x∗.
+(b) Furthermore, if ∇2F (x) is Lipschitz continuous with
+parameter ˆL, and x(t) satisﬁes
+
+(cid:107)x(t) − x
+
+∗
+
+(cid:107) ≤
+
+µ
+ˆLκ
+
+ν(t),
+
+where 0 < ν(t) < 1, then it holds that
+
+(cid:18)
+(cid:107)∇F (x(t+1))(cid:107)M∗
+≤
+
+0 +
+
+1
+1 − 0
+2
+
++
+
+(1 − 0)2
+
+(cid:19) 1 + ν(t)
+1 − ν(t)(cid:107)∇F (x(t))(cid:107)M∗
+1 − ν(t) (cid:107)∇F (x(t))(cid:107)2
+
+(1 + ν(t))2
+
+ˆLκ
+µ√µ
+
+M∗ .
+
+(cid:17)
+
+(cid:16)
+
+0 + 1
+1−0
+
+From Theorem 3, we can ﬁnd some important
+in-
+sights. First, Theorem 3 provides sufﬁcient conditions to
+get different convergence rates including super-liner and
+is a constant,
+quadratic convergence rates. If
+then sequence {x(t)} converges linearly because ν(t) and
+η(t) will go to 0 as t goes to inﬁnity. If we set 0 = 0(t)
+and 1 = 1(t) such that 0(t) and 1(t) decrease to 0
+as t increases, then sequence {x(t)} will converge super-
+linearly. Similarly, if 0(t) = O((cid:107)∇F (x(t))(cid:107)M∗ ), 1(t) =
+O((cid:107)∇F (x(t))(cid:107)M∗ ), and ∇2F (x) is Lipschitz continuous,
+then sequence {x(t)} will converge quadratically.
+Second, Theorem 3 makes it clear that the Lipschitz conti-
+nuity of ∇2F (x) is not necessary for linear convergence
+and superlinear convergence of stochastic second order
+methods including Subsampled Newton method, Sketch
+Newton, NewSamp, etc. This reveals the reason why
+NewSamp can be used to train the smoothed SVM where
+the Lipschitz continuity of the Hessian matrix is not sat-
+isﬁed. The Lipschitz continuity condition is only needed
+to get a quadratic convergence or linear-quadratic conver-
+gence. This explains the phenomena that LiSSA(Agarwal
+et al., 2016), NewSamp (Erdogdu & Montanari, 2015),
+subsampled Newton with non-uniformly sampling (Xu
+et al., 2016), Sketched Newton (Pilanci & Wainwright,
+2015) have linear-quadratic convergence rate because they
+all assume that the Hessian is Lipschitz continuous. In fact,
+it is well known that the Lipschitz continuity condition of
+∇2F (x) is not necessary to achieve a linear or superlinear
+convergence rate for inexact Newton methods.
+
+Approximate Newton Methods and Their Local Convergence
+
+Table 1. Comparison with previous work
+
+Reference
+
+Pilanci & Wainwright (2015)
+
+Xu et al. (2016)
+
+Our result(Theorem 4)
+
+Algorithm 1 Sketch Newton.
+1: Input: x(0), 0 < δ < 1, 0 < 0 < 1;
+2: for t = 0, 1, . . . until termination do
+3:
+
+an
+
+0-subspace
+
+Construct
+for B(x(t)) and where ∇2F (x)
+∇2F (x)
+(B(x(t)))T B(x(t)),
+H (t) = [B(x(t))]T ST SB(x(t));
+Calculate p(t) ≈ argminp
+Update x(t+1) = x(t) − p(t);
+
+=
+
+4:
+5:
+6: end for
+
+embedding matrix S
+the form
+calculate
+
+is of
+and
+
+1
+
+2 pT H (t)p − pT∇F (x(t));
+
+Third, the unifying framework of Theorem 3 contains not
+only stochastic second order methods, but also the deter-
+ministic versions. For example, letting H (t) = ∇2F (x(t))
+and using conjugate gradient to get p(t), we obtain the fa-
+mous “Newton-CG” method. In fact, different choice of
+H (t) and different way to calculate p(t) lead us to differ-
+ent second order methods. In the following sections, we
+will use this framework to analyze the local convergence
+performance of these second order methods in detail.
+
+4. Sketch Newton Method
+In this section, we use Theorem 3 to analyze the local con-
+vergence properties of Sketch Newton (Algorithm 1). We
+mainly focus on the case that the Hessian matrix is of the
+form
+
+∇2F (x) = B(x)T B(x)
+
+(8)
+
+where B(x) is an explicitly available n × d matrix. Our
+result can be easily extended to the case that
+
+∇2F (x) = B(x)T B(x) + Q(x),
+
+where Q(x) is a positive semi-deﬁnite matrix related to the
+Hessian of regularizer.
+
+Theorem 4 Let F (x) satisfy the conditions described in
+Theorem 3. Assume the Hessian matrix is given as Eqn. (8).
+Let 0 < δ < 1, 0 < 0 < 1/2 and 0 ≤ 1 < 1 be
+given. S ∈ R(cid:96)×n is an 0-subspace embedding matrix w.r.t.
+B(x) with probability at least 1 − δ, and direction vector
+p(t) satisﬁes Eqn. (4). Then Algorithm 1 has the following
+convergence properties:
+
+(a) There exists a sufﬁcient small value γ, 0 < ν(t) < 1,
+and 0 < η(t) < 1 such that when (cid:107)x(t) − x∗
+(cid:107) ≤ γ,
+then each iteration satisﬁes Eqn. (5) with probability
+at least 1 − δ.
+
+(b) If ∇2F (x(t)) is also Lipschitz continuous and {x(t)}
+satisﬁes Eqn. (6), then each iteration satisﬁes Eqn. (7)
+with probability at least 1 − δ.
+
+(cid:16) dκ2 log d
+(cid:17)
+(cid:17)
+(cid:16) dκ log d
+(cid:16) d log d
+(cid:17)
+
+Sketched Size
+O
+O
+O
+
+2
+0
+
+2
+0
+
+2
+0
+
+Theorem 4 directly provides a bound of the sketched size.
+Using the leverage score sketching matrix as an example,
+0) is sufﬁcient. We com-
+the sketched size (cid:96) = O(d log d/2
+pare our theoretical bound of the sketched size with the
+ones of Pilanci & Wainwright (2015) and Xu et al. (2016) in
+Table 1. As we can see, our sketched size is much smaller
+than the other two, especially when the Hessian matrix is
+ill-conditioned.
+Theorem 4 shows that the sketched size (cid:96) is independent
+on the condition number of the Hessian matrix ∇2F (x)
+just as shown in Table 1. This explains the phenomena that
+when the Hessian matrix is ill-conditioned, Sketch Newton
+performs well even when the sketched size is only several
+times of d. For a large condition number, the theoretical
+bounds of both Xu et al. (2016) and Pilanci & Wainwright
+(2015) may be beyond the number of samples n. Note that
+the theoretical results of (Xu et al., 2016) and (Pilanci &
+Wainwright, 2015) still hold in the constrained optimiza-
+tion problem. However, our result proves the effectiveness
+of the sketch Newton method for the unconstrained opti-
+mization problem in the ill-conditioned case.
+
+5. The Subsampled Newton method and
+
+Variants
+
+In this section, we apply Theorem 3 to analyze Subsampled
+Newton and regularized subsampled Newton method.
+First, we make the assumption that each fi(x) and F (x)
+have the following properties:
+
+1≤i≤n(cid:107)∇2fi(x)(cid:107) ≤ K < ∞,
+max
+λmin(∇2F (x)) ≥ σ > 0.
+
+(10)
+Accordingly, if ∇2F (x) is ill-conditioned, then the value
+σ is large.
+
+K
+
+(9)
+
+5.1. The Subsampled Newton method
+
+The Subsampled Newton method is depicted in Algo-
+rithm 2, and we now give its local convergence properties
+in the following theorem.
+
+Theorem 5 Let F (x) satisfy the properties described in
+Theorem 3. Assume Eqn. (9) and Eqn. (10) hold and let
+0 < δ < 1, 0 < 0 < 1/2 and 0 ≤ 1 < 1 be given. |S|
+and H (t) are set as in Algorithm 2, and the direction vector
+p(t) satisﬁes Eqn. (4). Then Algorithm 2 has the following
+
+Approximate Newton Methods and Their Local Convergence
+
+Algorithm 2 Subsampled Newton.
+1: Input: x(0), 0 < δ < 1, 0 < 0 < 1;
+2: Set the sample size |S| ≥ 16K2 log(2d/δ)
+σ22
+0
+3: for t = 0, 1, . . . until termination do
+4:
+
+.
+
+(cid:80)
+Select a sample set S, of size |S| and construct H (t) =
+j∈S ∇2fj(x(t));
+1|S|
+Calculate p(t) ≈ argminp
+Update x(t+1) = x(t) − p(t);
+
+2 pT H (t)p − pT∇F (x(t));
+
+1
+
+5:
+6:
+7: end for
+
+convergence properties:
+
+(a) There exists a sufﬁcient small value γ, 0 < ν(t) < 1,
+and 0 < η(t) < 1 such that when (cid:107)x(t) − x∗
+(cid:107) ≤ γ,
+then each iteration satisﬁes Eqn. (5) with probability
+at least 1 − δ.
+
+(b) If ∇2F (x(t)) is also Lipschitz continuous and {x(t)}
+satisﬁes Eqn. (6), then each iteration satisﬁes Eqn. (7)
+with probability at least 1 − δ.
+
+As we can see, Algorithm 2 almost has the same conver-
+gence properties as Algorithm 1 except several minor dif-
+ferences. The main difference is the construction manner of
+H (t) which should satisfy Eqn. (2). Algorithm 2 relies on
+the assumption that each (cid:107)∇2fi(x)(cid:107) is upper bounded (i.e.,
+Eqn. (9) holds), while Algorithm 1 is built on the setting of
+the Hessian matrix as in Eqn. (8).
+
+5.2. Regularized Subsampled Newton
+
+In ill-conditioned cases (i.e., K
+σ is large), the subsampled
+Newton method in Algorithm 2 should take a lot of sam-
+ples because the sample size |S| depends on K
+σ quadrati-
+cally. To overcome this problem, one resorts to a regular-
+ized subsampled Newton method. The key idea is to add
+αI to the original subsampled Hessian just as described
+in Algorithm 3. Erdogdu & Montanari (2015) proposed
+NewSamp which is another regularized subsampled New-
+ton method depicted in Algorithm 4. In the following anal-
+ysis, we prove that adding a regularizer is an effective way
+to reduce the sample size while keeping converging in the-
+ory.
+We ﬁrst give the theoretical analysis of local convergence
+properties of Algorithm 3.
+
+Theorem 6 Let F (x) satisfy the properties described in
+Theorem 3. Assume Eqns. (9) and (10) hold, and let
+0 < δ < 1, 0 ≤ 1 < 1 and 0 < α be given. Assume β is
+a constant such that 0 < β < α + σ
+2 , the subsampled size
+|S| satisﬁes |S| ≥ 16K2 log(2d/δ)
+, and H (t) is constructed
+
+β2
+
+as in Algorithm 3. Deﬁne
+
+0 = max
+
+(cid:18) β − α
+
+σ + α − β
+
+(cid:19)
+
+,
+
+(11)
+
+,
+
+α + β
+
+σ + α + β
+
+which implies that 0 < 0 < 1. Besides, the direction
+vector p(t) satisﬁes Eqn. (4). Then Algorithm 3 has the
+following convergence properties:
+
+(a) There exists a sufﬁcient small value γ, 0 < ν(t) < 1,
+and 0 < η(t) < 1 such that when (cid:107)x(t) − x∗
+(cid:107) ≤
+γ, each iteration satisﬁes Eqn. (5) with probability at
+least 1 − δ.
+
+(b) If ∇2F (x(t)) is also Lipschitz continuous and {x(t)}
+satisﬁes Eqn. (6), then each iteration satisﬁes Eqn. (7)
+with probability at least 1 − δ.
+
+α2
+
+In Theorem 6 the parameter 0 mainly decides convergence
+properties of Algorithm 3. It is determined by two terms
+just as shown in Eqn. (11). These two terms depict the re-
+lationship among the sample size, regularizer αI, and con-
+vergence rate.
+The ﬁrst term describes the relationship between the regu-
+larizer αI and sample size. Without loss of generality, we
+set β = α which satisﬁes 0 < β < α + σ/2. Then the
+sample size |S| = 16K2 log(2d/δ)
+decreases as α increases.
+Hence Theorem 6 gives a theoretical guarantee that adding
+the regularizer αI is an effective approach for reducing the
+sample size when K/σ is large. Conversely, if we want to
+sample a small part of fi’s, then we should choose a large
+α. Otherwise, β will go to α + σ/2 which means 0 = 1,
+i.e., the sequence {x(t)} does not converge.
+Though a large α can reduce the sample size, it is at the
+expense of slower convergence rate just as the second term
+shows. As we can see,
+σ+α+β goes to 1 as α increases.
+Besides, 1 also has to decrease. Otherwise, 0 + 1
+1−0
+may be beyond 1 which means that Algorithm 3 will not
+converge.
+In fact, slower convergence rate via adding a regularizer is
+because the sample size becomes small, which implies less
+curvature information is obtained. However, a small sam-
+ple size implies low computational cost in each iteration.
+Therefore, a proper regularizer which balances the cost of
+each iteration and convergence rate is the key in the regu-
+larized subsampled Newton algorithm.
+Next, we give the theoretical analysis of local convergence
+properties of NewSamp (Algorithm 4).
+
+α+β
+
+Theorem 7 Let F (x) satisfy the properties described in
+Theorem 3. Assume Eqn. (9) and Eqn. (10) hold and let
+0 < δ < 1 and target rank r be given. Let β be a con-
+r+1 is the (r + 1)-th
+stant such that 0 < β <
+
+λ(t)
+2 , where λ(t)
+r+1
+
+Approximate Newton Methods and Their Local Convergence
+
+|S| ;
+
+Algorithm 3 Regularized Subsample Newton.
+1: Input: x(0), 0 < δ < 1, regularizer parameter α, sample size
+
+2: for t = 0, 1, . . . until termination do
+3:
+
+(cid:80)
+Select a sample set S, of size |S| and construct H (t) =
+j∈S ∇2fj(x(t)) + αI;
+1|S|
+Calculate p(t) ≈ argminp
+Update x(t+1) = x(t) − p(t);
+
+2 pT H (t)p − pT∇F (x(t))
+
+1
+
+4:
+5:
+6: end for
+
+Algorithm 4 NewSamp.
+1: Input: x(0), 0 < δ < 1, r, sample size |S|;
+2: for t = 0, 1, . . . until termination do
+3:
+
+|S| =
+
+(cid:80)
+j∈S ∇2fj(x(t));
+
+Select a sample set S, of size |S| and get H (t)
+1|S|
+Compute rank r + 1 truncated SVD deompostion of H (t)
+|S|
+to get Ur+1 and ˆΛr+1. Construct H (t) = H (t)
+|S| +
+U\r(ˆλ(t)
+Calculate p(t) ≈ argminp
+Update x(t+1) = x(t) − p(t);
+
+2 pT H (t)p − pT∇F (x(t))
+
+r+1I − ˆΛ\r)U T\r
+
+1
+
+4:
+
+5:
+6:
+7: end for
+
+eigenvalue of ∇2F (x(t)). Set the subsampled size |S| such
+that |S| ≥ 16K2 log(2d/δ)
+
+, and deﬁne
+
+β2
+
+(cid:33)
+
+(cid:32)
+
+0 = max
+
+β
+
+λ(t)
+r+1 − β
+
+,
+
+2β + λ(t)
+r+1
+σ + 2β + λ(t)
+r+1
+
+,
+
+(12)
+
+which implies 0 < 0 < 1. Assume the direction vector
+p(t) satisﬁes Eqn. (4). Then Algorithm 4 has the following
+convergence properties:
+
+(a) There exists a sufﬁcient small value γ, 0 < ν(t) < 1,
+and 0 < η(t) < 1 such that when (cid:107)x(t) − x∗
+(cid:107) ≤
+γ, each iteration satisﬁes Eqn. (5) with probability at
+least 1 − δ.
+
+(b) If ∇2F (x(t)) is also Lipschitz continuous and {x(t)}
+satisﬁes Eqn. (6), then each iteration satisﬁes Eqn. (7)
+with probability at least 1 − δ.
+
+Similar to Theorem 6, parameter 0 in NewSamp is also de-
+termined by two terms. The ﬁrst term reveals the the rela-
+tionship between the target rank r and sample size. Without
+loss of generality, we can set β = λ(t)
+r+1/4. Then the sam-
+ple size is linear in 1/[λ(t)
+r+1]2. Hence, a small r means that
+a small sample size is sufﬁcient. Conversely, if we want
+to sample a small portion of fi’s, then we should choose
+a small r. Otherwise, β will go to λ(t)
+r+1/2 which means
+0 = 1, i.e., the sequence {x(t)} does not converge. The
+second term shows that a small sample size will lead to a
+poor convergence rate. If we set r = 0 and β = λ1/2, then
+
+1
+
+1+2λ1/σ . Consequently, the convergence
+0 will be 1 −
+rate of NewSamp is almost the same as gradient descent.
+Similar to Algorithm 3, a small r means a precise solution
+to Problem (3) and the initial point x(0) being close to the
+optimal point x∗.
+It is worth pointing out that Theorem 7 explains the empir-
+ical results that NewSamp is applicable in training SVM in
+which the Lipschitz continuity condition of ∇2F (x) is not
+satisﬁed (Erdogdu & Montanari, 2015).
+We now conduct comparison between Theorem 6 and The-
+orem 7. We mainly focus on the parameter 0 in these
+two theorems which mainly determines convergence prop-
+erties of Algorithm 3 and Algorithm 4. Speciﬁcally, if we
+2β+λ(t)
+set α = β + λ(t)
+r+1
+σ+2β+λ(t)
+r+1
+which equals to the second term on the right-hand side in
+Eqn. (12). Hence, we can regard NewSamp as a special
+case of Algorithm 3. However, NewSamp provides an ap-
+proach for automatical choice of α.
+Recall that NewSamp includes another parameter: the tar-
+get rank r. Thus, NewSamp and Algorithm 3 have the
+same number of free parameters. If r is not properly cho-
+sen, NewSamp will still have poor performance. Therefore,
+Algorithm 3 is theoretically preferred because NewSamp
+needs extra cost to perform SVDs.
+
+r+1 in Eqn. (11), then 0 =
+
+6. Inexact Newton Methods
+Let H (t) = ∇2F (x(t)), that is, 0 = 0. Then Theo-
+rem 3 depicts the convergence properties of inexact Newton
+methods.
+
+Theorem 8 Let F (x) satisfy the properties described in
+Theorem 3, and p(t) be a direction vector such that
+
+(cid:107)∇F (x(t)) − ∇2F (x(t))p(t)(cid:107) ≤
+
+1
+κ (cid:107)∇F (x(t))(cid:107),
+
+where 0 < 1 < 1. Consider the iteration x(t+1) = x(t) −
+p(t).
+(a) There exists a sufﬁcient small value γ, 0 < ν(t) < 1,
+and 0 < η(t) < 1 such that when (cid:107)x(t) − x∗
+(cid:107) ≤ γ, then it
+
+holds that
+
+1 + ν(t)
+
+(cid:107)∇F (x(t+1))(cid:107)M∗ ≤ (1 +2η(t))
+
+1 − ν(t)(cid:107)∇F (x(t))(cid:107)M∗ .
+(b) If ∇2F (x) is also Lipschitz continuous with parameter
+ˆL, and {x(t)} satisﬁes Eqn. (6), then it holds that
+(cid:107)∇F (x(t+1))(cid:107)M∗ ≤1
+1 − ν(t)(cid:107)∇F (x(t))(cid:107)M∗ +
+2 ˆLκ
+1 − ν(t) (cid:107)∇F (x(t))(cid:107)2
+µ√µ
+
+(1 + ν(t))2
+
+1 + ν(t)
+
+M∗ .
+
+Approximate Newton Methods and Their Local Convergence
+
+7. Empirical Study
+In this section, we validate our theoretical results about
+sketched size of the sketch Newton, and sample size of
+regularized Newton, experimentally. Experiments for vali-
+dating unnecessity of the Lipschitz continuity condition of
+∇2F (x) are given in the supplementary materials.
+7.1. Sketched Size of Sketch Newton
+Now we validate that our theoretical result that sketched
+size is independent of the condition number of the Hessian
+in Sketch Newton. To control the condition number of the
+Hessian conveniently, we conduct the experiment on least
+squares regression which is deﬁned as
+
+min
+
+x
+
+1
+2
+
+(cid:107)Ax − b(cid:107)2.
+
+(13)
+
+In each iteration, the Hessian matrix is AT A. In our exper-
+iment, A is a 10000× 54 matrix. We set the singular values
+σi of A as: σi = 1.2−i. Then the condition number of A
+is κ(A) = 1.254 = 1.8741 × 104. We use different sketch
+matrices in Sketch Newton (Algorithm 1) and set different
+values of the sketched size (cid:96). We report our empirical re-
+sults in Figure 1.
+From Figure 1, we can see that Sketch Newton performs
+well when the sketch size (cid:96) is several times of d for all
+different sketching matrices. Moreover, the corresponding
+algorithms converge linearly. This matches our theory that
+the sketched size is independent of the condition number
+of the Hessian matrix to achieve a linear convergence rate.
+In contrast, the theoretical result of (Xu et al., 2016) shows
+that the sketched size is (cid:96) = d ∗ κ(A) = 1.02 × 106 bigger
+than n = 104.
+
+(a) Leverage Score Sam-
+pling.
+
+(b) Sparse Sketching.
+
+Figure 1. Convergence properties of different sketched sizes
+
+7.2. Sample Size of Regularized Subsampled Newton
+
+We also choose least squares regression deﬁned in
+Eqn. (13) in our experiment to validate the theory that
+adding a regularizer is an effective approach to reducing
+the sample size while keeping convergence in Subsampled
+Newton. Let A ∈ Rn×d where n = 8000 and d = 5000.
+Hence Sketch Newton can not be used in this case because
+n and d are close to each other. In our experiment, we set
+different sample sizes |S|. For each |S| we choose different
+
+regularizer terms α and different target ranks r. We report
+our results in Figure 2.
+As we can see, if the sample size |S| is small, then we
+should choose a large α; otherwise, the algorithm will di-
+verge. However, if the regularizer term α is too large, then
+the algorithm will converge slowly. Increasing the sample
+size and choosing a proper regularizer will improve conver-
+gence properties obviously. When |S| = 600, it only needs
+about 1200 iterations to obtain a precise solution while it
+needs about 8000 iterations when |S| = 100. Similarly, if
+the sample size |S| is small, then we should choose a small
+target rank. Otherwise NewSamp may diverge. Also, if
+the target rank is not chosen properly, NewSamp will have
+poor convergence properties. Furthermore, from Figure 2,
+we can see that the two algorithms have similar conver-
+gence properties. This validates the theoretical result that
+NewSamp provides a method to choose α automatically.
+Our empirical analysis matches the theoretical analysis in
+Subsection 5.2 very well.
+
+(a) Sample Size |S| = 100
+
+(b) Sample Size |S| = 600
+
+Figure 2. Convergence properties of Regularized Subsampled
+Newton and NewSamp
+
+8. Conclusion
+In this paper, we have proposed a framework to analyze the
+local convergence properties of second order methods in-
+cluding stochastic and deterministic versions. This frame-
+work reveals some important convergence properties of the
+subsampled Newton method and sketch Newton method,
+which are unknown before. The most important thing is
+that our analysis lays the theoretical foundation of several
+important stochastic second order methods.
+We believe that this framework might also provide some
+useful insights for developing new subsampled Newton-
+type algorithms. We would like to address this issue in
+future.
+
+51015202530iteration-30-25-20-15-10-505log(err)Levereage Score Sketchingℓ=8dℓ=10dℓ=15d5101520253035404550iteration-30-25-20-15-10-505log(err)Sparse Sketchingℓ=5dℓ=8dℓ=10d010002000300040005000600070008000900010000iteration-30-25-20-15-10-5051015log(err)|S|=100α=19000α=20000α=30000010002000300040005000600070008000900010000iteration-30-25-20-15-10-5051015log(err)|S|=100r=20r=40r=550500100015002000−30−25−20−15−10−505101520log(err)iteration|S|=600  α=2500α=3000α=400050010001500200025003000iteration-25-20-15-10-5051015log(err)|S|=300r=20r=40r=55Approximate Newton Methods and Their Local Convergence
+
+Nocedal, Jorge and Wright, Stephen. Numerical optimiza-
+
+tion. Springer Science & Business Media, 2006.
+
+Pilanci, Mert and Wainwright, Martin J. Newton sketch: A
+linear-time optimization algorithm with linear-quadratic
+convergence. arXiv preprint arXiv:1505.02250, 2015.
+
+Robbins, Herbert and Monro, Sutton. A stochastic approx-
+imation method. The annals of mathematical statistics,
+pp. 400–407, 1951.
+
+Roosta-Khorasani, Farbod and Mahoney, Michael W. Sub-
+sampled newton methods ii: Local convergence rates.
+arXiv preprint arXiv:1601.04738, 2016.
+
+Roux, Nicolas L, Schmidt, Mark, and Bach, Francis R. A
+stochastic gradient method with an exponential conver-
+gence rate for ﬁnite training sets. In Advances in Neural
+Information Processing Systems, pp. 2663–2671, 2012.
+
+Schmidt, Mark, Roux, Nicolas Le, and Bach, Francis. Min-
+imizing ﬁnite sums with the stochastic average gradient.
+arXiv preprint arXiv:1309.2388, 2013.
+
+Woodruff, David P. Sketching as a tool for numerical lin-
+ear algebra. Foundations and Trends R(cid:13) in Theoretical
+Computer Science, 10(1–2):1–157, 2014.
+
+Xu, Peng, Yang, Jiyan, Roosta-Khorasani, Farbod, R´e,
+Christopher, and Mahoney, Michael W. Sub-sampled
+In Ad-
+newton methods with non-uniform sampling.
+vances in Neural Information Processing Systems, pp.
+3000–3008, 2016.
+
+Zhang, Lijun, Mahdavi, Mehrdad, and Jin, Rong. Linear
+convergence with condition number independent access
+of full gradients. In Advance in Neural Information Pro-
+cessing Systems 26 (NIPS), pp. 980–988, 2013.
+
+Acknowledgements
+Ye has been supported by the National Natural Science
+Foundation of China (Grant No. 11426026, 61632017,
+61173011) and a Project 985 grant of Shanghai Jiao Tong
+University.
+Luo and Zhang have been supported by
+he National Natural Science Foundation of China (No.
+61572017), Natural Science Foundation of Shanghai City
+(No. 15ZR1424200), and Microsoft Research Asia Collab-
+orative Research Award.
+
+References
+Agarwal, Naman, Bullins, Brian, and Hazan, Elad. Sec-
+ond order stochastic optimization in linear time. arXiv
+preprint arXiv:1602.03943, 2016.
+
+Byrd, Richard H, Chin, Gillian M, Neveitt, Will, and No-
+cedal, Jorge. On the use of stochastic hessian infor-
+mation in optimization methods for machine learning.
+SIAM Journal on Optimization, 21(3):977–995, 2011.
+
+Clarkson, Kenneth L and Woodruff, David P. Low rank
+approximation and regression in input sparsity time. In
+Proceedings of the forty-ﬁfth annual ACM symposium on
+Theory of computing, pp. 81–90. ACM, 2013.
+
+Cotter, Andrew, Shamir, Ohad, Srebro, Nati, and Sridharan,
+Karthik. Better mini-batch algorithms via accelerated
+In Advances in neural information
+gradient methods.
+processing systems, pp. 1647–1655, 2011.
+
+Erdogdu, Murat A and Montanari, Andrea. Convergence
+rates of sub-sampled newton methods. In Advances in
+Neural Information Processing Systems, pp. 3034–3042,
+2015.
+
+Johnson, Rie and Zhang, Tong. Accelerating stochastic
+gradient descent using predictive variance reduction. In
+Advances in Neural Information Processing Systems, pp.
+315–323, 2013.
+
+Li, Mu, Zhang, Tong, Chen, Yuqiang, and Smola, Alexan-
+der J. Efﬁcient mini-batch training for stochastic opti-
+In Proceedings of the 20th ACM SIGKDD
+mization.
+international conference on Knowledge discovery and
+data mining, pp. 661–670. ACM, 2014.
+
+Meng, Xiangrui and Mahoney, Michael W. Low-distortion
+subspace embeddings in input-sparsity time and applica-
+tions to robust linear regression. In Proceedings of the
+forty-ﬁfth annual ACM symposium on Theory of comput-
+ing, pp. 91–100. ACM, 2013.
+
+Nemirovski, Arkadi, Juditsky, Anatoli, Lan, Guanghui, and
+Shapiro, Alexander. Robust stochastic approximation
+approach to stochastic programming. SIAM Journal on
+Optimization, 19(4):1574–1609, 2009.
+
+
